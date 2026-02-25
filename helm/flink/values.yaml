@@ -1,0 +1,18 @@
+# Default values for Flink Helm chart
+replicaCount: 1
+image:
+  repository: flink
+  tag: 1.18.0
+  pullPolicy: IfNotPresent
+job:
+  enabled: true
+  jar: /opt/flink/job.jar
+  mainClass: com.example.flink.WordCount
+  args: []
+service:
+  type: ClusterIP
+  port: 8081
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

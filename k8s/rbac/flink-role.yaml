@@ -1,0 +1,11 @@
+# Flink Role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: flink-role
+  namespace: flink
+rules:
+# Add rules here
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]

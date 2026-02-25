@@ -1,0 +1,34 @@
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: word-count-app
+  namespace: flink
+spec:
+  image: your-registry/flink-word-count:1.0
+  flinkVersion: v1_18
+  flinkConfiguration:
+    taskmanager.numberOfTaskSlots: "4"
+    state.backend: rocksdb
+    state.backend.incremental: "true"
+    state.checkpoints.dir: s3://my-bucket/flink/checkpoints
+    state.savepoints.dir: s3://my-bucket/flink/savepoints
+    execution.checkpointing.interval: 60s
+    execution.checkpointing.mode: EXACTLY_ONCE
+    execution.checkpointing.timeout: 10min
+    state.backend.rocksdb.localdir: /flink-data/rocksdb
+  jobManager:
+    resource:
+      memory: "2048m"
+      cpu: 1
+  taskManager:
+    resource:
+      memory: "4096m"
+      cpu: 2
+    replicas: 3
+  job:
+    jarURI: local:///opt/flink/usrlib/word-count.jar
+    entryClass: com.example.flink.WordCount
+    args: []
+    parallelism: 8
+    upgradeMode: savepoint
+    state: running

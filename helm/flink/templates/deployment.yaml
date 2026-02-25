@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "flink.fullname" . }}-jobmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "flink.name" . }}
+      component: jobmanager
+  template:
+    metadata:
+      labels:
+        app: {{ include "flink.name" . }}
+        component: jobmanager
+    spec:
+      containers:
+        - name: jobmanager
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8081
+          env:
+            - name: JOB_MANAGER_RPC_ADDRESS
+              value: jobmanager
+          command: ["jobmanager"]

@@ -1,0 +1,5 @@
+# Flink Namespace YAML
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: flink
