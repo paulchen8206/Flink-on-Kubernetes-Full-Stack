@@ -5,12 +5,12 @@ set -e
 
 # 1. Build the job JAR and Docker image
 echo "Building job JAR and Docker image..."
-mvn clean package -f ../flink-jobs/word-count/pom.xml
-docker build -t word-count-job:latest ../docker/word-count
+mvn clean package -f ../flink-jobs/purchase-report/pom.xml
+docker build -t purchase-report-job:latest ../docker/purchase-report
 
 # 2. Load the image into kind
 echo "Loading Docker image into kind cluster..."
-./scripts/load-image-to-kind.sh word-count-job:latest
+./scripts/load-image-to-kind.sh purchase-report-job:latest
 
 # 3. Apply Kubernetes manifests
 echo "Applying Kubernetes resources..."

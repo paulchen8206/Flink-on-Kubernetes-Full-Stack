@@ -7,7 +7,7 @@ image:
 job:
   enabled: true
   jar: /opt/flink/job.jar
-  mainClass: com.example.flink.WordCount
+  mainClass: com.example.flink.purchaseReport
   args: []
 service:
   type: ClusterIP

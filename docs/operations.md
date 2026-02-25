@@ -7,18 +7,18 @@ This guide covers key operational tasks for running Apache Flink on Kubernetes u
 - **Scaling:**
 	- Scale TaskManagers:
 		```sh
-		kubectl patch flinkdeployment word-count-app -n flink --type merge -p '{"spec":{"taskManager":{"replicas":5}}}'
+		kubectl patch flinkdeployment purchase-report-app -n flink --type merge -p '{"spec":{"taskManager":{"replicas":5}}}'
 		```
 	- Increase job parallelism:
 		```sh
-		kubectl patch flinkdeployment word-count-app -n flink --type merge -p '{"spec":{"job":{"parallelism":16}}}'
+		kubectl patch flinkdeployment purchase-report-app -n flink --type merge -p '{"spec":{"job":{"parallelism":16}}}'
 		```
 
 ## 2. Monitoring
 - **Flink Web UI:**
 	- Port-forward:
 		```sh
-		kubectl port-forward svc/word-count-app-rest -n flink 8081:8081
+		kubectl port-forward svc/purchase-report-app-rest -n flink 8081:8081
 		# Open http://localhost:8081
 		```
 - **Prometheus:**
@@ -27,13 +27,13 @@ This guide covers key operational tasks for running Apache Flink on Kubernetes u
 ## 3. Savepoints & Upgrades
 - **Trigger savepoint:**
 	```sh
-	kubectl patch flinkdeployment word-count-app -n flink --type merge -p '{"spec":{"job":{"savepointTriggerNonce":1}}}'
+	kubectl patch flinkdeployment purchase-report-app -n flink --type merge -p '{"spec":{"job":{"savepointTriggerNonce":1}}}'
 	```
 - **Upgrade job with savepoint:**
 	1. Build and push new image.
 	2. Patch deployment with new image:
 		 ```sh
-		 kubectl patch flinkdeployment word-count-app -n flink --type merge -p '{"spec":{"image":"your-repo/flink-word-count:1.1"}}'
+		 kubectl patch flinkdeployment purchase-report-app -n flink --type merge -p '{"spec":{"image":"your-repo/flink-purchase-report:1.1"}}'
 		 ```
 
 ## 4. Failure Recovery

@@ -1,10 +1,10 @@
 apiVersion: flink.apache.org/v1beta1
 kind: FlinkDeployment
 metadata:
-  name: word-count-app
+  name: purchase-report-app
   namespace: flink
 spec:
-  image: your-registry/flink-word-count:1.0
+  image: your-registry/flink-purchase-report:1.0
   flinkVersion: v1_18
   flinkConfiguration:
     taskmanager.numberOfTaskSlots: "4"
@@ -26,8 +26,8 @@ spec:
       cpu: 2
     replicas: 3
   job:
-    jarURI: local:///opt/flink/usrlib/word-count.jar
-    entryClass: com.example.flink.WordCount
+    jarURI: local:///opt/flink/usrlib/purchase-report.jar
+    entryClass: com.example.flink.purchaseReport
     args: []
     parallelism: 8
     upgradeMode: savepoint

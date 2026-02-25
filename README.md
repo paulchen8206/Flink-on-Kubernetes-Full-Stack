@@ -1,154 +1,138 @@
 ---
 ---
-# Apache Flink on Kubernetes
+
+# Flink-Kafka-Postgres-AWS-Helm-Kubernetes
 
 Deploy and manage Apache Flink stream processing jobs on Kubernetes using the Flink Kubernetes Operator, Helm, and containerized local development tools.
 
 ---
 
+
 ## Table of Contents
-- [Project Overview](#project-overview)
-- [Deployment Procedures](#deployment-procedures)
-- [Script Organization & Makefile Usage](#script-organization--makefile-usage)
+
 - [Project Structure](#project-structure)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
 - [Architecture](#architecture)
-- [Installation](#installation)
+- [Deployment Options](#deployment-options)
+- [Script Organization & Makefile Usage](#script-organization--makefile-usage)
+- [Developing & Packaging Flink Jobs](#developing--packaging-flink-jobs)
+- [Operations: Scaling, Monitoring, Recovery](#operations-scaling-monitoring-recovery)
+- [Best Practices](#best-practices)
 - [References](#references)
+- [Conclusion](#conclusion)
 
 ---
 
-## Project Overview
 
-This project provides a production-ready template for running Apache Flink jobs on Kubernetes, with:
-- Flink Kubernetes Operator for job orchestration
-- Helm charts for templated deployment
-- Docker Compose for local development (with S3 emulation via LocalStack and MinIO, Kafka for event streaming, salesgen for event generation, and Kafka Control Center for topic management)
-- CI/CD pipeline for automated build, image, and deployment
+## Repository Layout
 
----
-## Deployment Procedures
-
-Two main workflows are supported:
-
-### 1. Local Development (Docker Compose)
-- Run Flink JobManager, TaskManager, WordCount job, LocalStack, MinIO, Kafka, salesgen, and Kafka Control Center as containers
-- See [docker/docker-compose.yml](docker/docker-compose.yml) for service definitions
-- Access Flink UI at http://localhost:8081
-- S3 emulation via LocalStack (http://localhost:4566) and MinIO (http://localhost:9000, console at http://localhost:9001)
-- Kafka broker at http://localhost:9092
-- salesgen produces events to Kafka topic sales-events
-- Kafka Control Center (Kafka UI) at http://localhost:8082 for topic/event management
-
-### 2. Kubernetes Deployment (kind or cloud)
-- Use kind for local Kubernetes cluster
-- Automated scripts and Makefile targets for setup, build, image loading, and deployment
-- Helm chart for templated Flink deployment
-
----
----
-
-# Apache Flink on Kubernetes with the Flink Operator
-
-> Deploy and manage Apache Flink stream processing jobs on Kubernetes using the Flink Kubernetes Operator for scalable, real-time data processing workloads.
+| Directory/File | Purpose |
+| ------------- | ------- |
+| ci-cd/ | CI/CD pipeline configuration ([ci-cd/pipeline.yaml](ci-cd/pipeline.yaml)) |
+| config/ | Flink and logging configuration files |
+| &nbsp;&nbsp;&nbsp;&nbsp;flink-conf/ | Flink application configs |
+| &nbsp;&nbsp;&nbsp;&nbsp;logging/ | Log4j and logging configs |
+| docker/ | Docker Compose and Dockerfiles for local development and job images |
+| &nbsp;&nbsp;&nbsp;&nbsp;docker-compose.yml | Local stack with Flink, Kafka, MinIO, LocalStack, salesgen, Kafka UI |
+| &nbsp;&nbsp;&nbsp;&nbsp;Dockerfile | Base Docker image for Flink jobs |
+| docs/ | Documentation |
+| &nbsp;&nbsp;&nbsp;&nbsp;architecture.md | System architecture |
+| &nbsp;&nbsp;&nbsp;&nbsp;best-practices.md | Flink and Kubernetes best practices |
+| &nbsp;&nbsp;&nbsp;&nbsp;deployment-guide.md | Step-by-step deployment instructions |
+| &nbsp;&nbsp;&nbsp;&nbsp;operations.md | Operations and troubleshooting |
+| flink-jobs/ | Flink job source code and build files |
+| &nbsp;&nbsp;&nbsp;&nbsp;purchase-report/ | Example Flink job (Java, Maven) |
+| helm/ | Helm chart for templated Flink deployment |
+| &nbsp;&nbsp;&nbsp;&nbsp;flink/ | Helm chart, values, and templates |
+| k8s/ | Kubernetes manifests and resources |
+| &nbsp;&nbsp;&nbsp;&nbsp;flink-resources.yaml | Namespace, RBAC, PVC, etc. |
+| &nbsp;&nbsp;&nbsp;&nbsp;flink-deployments/ | FlinkDeployment CRDs for jobs |
+| &nbsp;&nbsp;&nbsp;&nbsp;monitoring/ | Prometheus ServiceMonitor, metrics config |
+| &nbsp;&nbsp;&nbsp;&nbsp;namespaces/, rbac/, secrets/, storage/ | Supporting manifests |
 
 
-12. [Run with Docker & kind](#run-with-docker--kind)
----
-
-
-## Script Organization & Makefile Usage
-
-All operational scripts are under `scripts/`. Use the Makefile for streamlined operations:
-
-
-### Key Makefile Targets
-- `make kind-up`: Start kind cluster
-- `make kind-down`: Delete kind cluster
-- `make prepare-dev`: Setup operator, RBAC, etc.
-- `make build-jar`: Build Flink job JAR (via scripts/build-jar.sh)
-- `make build-docker`: Build Docker image (via scripts/build-docker.sh)
-- `make load-image IMAGE=...`: Load image into kind
-- `make deploy`: Deploy Flink resources/job
-- `make helm-deploy`: Deploy via Helm chart
-- `make port-forward`: Port-forward Flink UI
-- `make scale COUNT=...`: Scale TaskManagers
-- `make upgrade`: Upgrade job
-- `make savepoint`: Trigger savepoint
-
-### Example Workflow
-```sh
-make kind-up
-make prepare-dev
-make build-jar
-make build-docker
-make load-image IMAGE=purchase-report-job:latest
-make deploy
-make helm-deploy
-```
----
-
----
-## Project Structure
-
-- [k8s/README.md](k8s/README.md): Kubernetes manifests and resources
-- [flink-jobs/word-count/README.md](flink-jobs/word-count/README.md): Job build/deploy instructions
-- [docker/docker-compose.yml](docker/docker-compose.yml): Local container orchestration
-  - Flink, LocalStack, MinIO, Kafka, salesgen, Kafka Control Center
-- [helm/flink/README.md](helm/flink/README.md): Helm chart for Flink
-- [ci-cd/pipeline.yaml](ci-cd/pipeline.yaml): CI/CD pipeline
-- [docs/](docs/): Operations, best practices, architecture
-- [scripts/](scripts/): Operational scripts
-- [config/](config/): Flink and logging configs
----
-
-### Prerequisites
-- Docker
-- kind (install via `brew install kind` or see [kind docs](https://kind.sigs.k8s.io/docs/user/quick-start/))
-- kubectl
-- Helm
-
-### Steps
-1. **Start a local kind cluster:**
-  ```sh
-  make kind-up
-  ```
-2. **Prepare the dev environment (install operator, etc):**
-  ```sh
-  make prepare-dev
-  ```
-3. **Build the job JAR and Docker image:**
-  ```sh
-  make build-job
-  make build-image IMAGE=your-repo/flink-word-count:1.0
-  ```
-4. **Load the image into kind:**
-  ```sh
-  make load-image IMAGE=your-repo/flink-word-count:1.0
-  ```
-5. **Deploy Flink resources and job:**
-  ```sh
-  make deploy
-  ```
-6. **Deploy via Helm (optional):**
-  ```sh
-  make helm-deploy
-  ```
-7. **Monitor and access Flink UI:**
-  ```sh
-  make port-forward
-  # Open http://localhost:8081
-  ```
+## Final Notes
 
 ---
 
+# 📖 Flink on Kubernetes: Reference Guide
+
+## 1. Overview
+
+Apache Flink on Kubernetes with the Flink Operator provides a scalable, resilient, and production-ready platform for real-time stream processing. This chapter summarizes the most important operational and development practices for this project.
+
 ---
 
-## Overview
-Apache Flink provides stateful computations over data streams for real-time analytics, ETL pipelines, and event-driven applications. Running Flink on Kubernetes brings container orchestration benefits to stream processing. The Flink Kubernetes Operator simplifies deploying and managing Flink clusters and jobs.
+## 2. Deployment Guide
+
+- Use the [deployment guide](docs/deployment-guide.md) for step-by-step instructions.
+- Example manifests:
+  - [Flink Deployments](k8s/flink-deployments/)
+  - [Cluster Resources](k8s/flink-resources.yaml)
+- Makefile and scripts automate cluster setup, job deployment, scaling, and monitoring.
+- Supports both local (Docker Compose) and Kubernetes-based workflows.
 
 ---
 
-## Architecture
+## 3. Job Development & Packaging
+
+- Sample job: [purchase-report](flink-jobs/purchase-report/)
+- Build with Maven: see [pom.xml](flink-jobs/purchase-report/pom.xml)
+- Package and build Docker images: see [Dockerfile](docker/purchase-report/Dockerfile)
+- Update deployment YAMLs to use your custom image and entry class.
+
+---
+
+## 4. State Management & S3
+
+- Use S3 for checkpoints/savepoints in production.
+- Reference [k8s/secrets/s3-credentials.yaml](k8s/secrets/s3-credentials.yaml) for secret example.
+- Set S3 config in your FlinkDeployment YAML.
+- Enable incremental checkpoints for efficiency.
+
+---
+
+## 5. Scaling, Upgrades & Savepoints
+
+- Scale TaskManagers and adjust parallelism using Makefile targets or Helm values.
+- Use savepoints for safe upgrades and stateful restarts.
+- See scripts and README for automated scaling and upgrade flows.
+- Example: `make scale-taskmanagers COUNT=5`, `make trigger-savepoint`, `make upgrade-job IMAGE=...`
+
+---
+
+## 6. Monitoring & Observability
+
+- Access the Flink Web UI via port-forwarding: `make port-forward`
+- Prometheus integration: see [k8s/monitoring/servicemonitor.yaml](k8s/monitoring/servicemonitor.yaml)
+- Configure Flink to export metrics for observability.
+
+---
+
+## 7. Failure Recovery & Best Practices
+
+- Automated savepoints and recovery ensure high availability.
+- Test failure scenarios and recovery procedures regularly.
+- Recommended practices:
+  - Use RocksDB for large state
+  - Configure incremental checkpoints
+  - Match parallelism to available slots
+  - Monitor backpressure
+  - Test savepoint compatibility
+  - Size TaskManager memory for RocksDB and buffers
+  - Use exactly-once semantics for critical workloads
+  - Retain savepoints for rollback
+
+---
+
+## 8. Further Resources
+
+- [Flink Documentation](https://nightlies.apache.org/flink/)
+- [Flink Kubernetes Operator](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/)
+- [Helm Documentation](https://helm.sh/docs/)
+- [Kubernetes Documentation](https://kubernetes.io/docs/)
+
 Flink applications consist of a **JobManager** (coordinates execution, scheduling, checkpointing, recovery) and **TaskManagers** (run parallel computations). State is managed via checkpoints and stored in backends like RocksDB or memory, enabling exactly-once semantics. S3-compatible storage (LocalStack, MinIO) is used for state backend in local development.
 ---
 
@@ -181,18 +165,18 @@ To deploy and monitor, use the provided manifests and scripts. See k8s/ for YAML
 
 
 ## Custom Flink Job Example
-See the sample job implementation in [flink-jobs/word-count/src/main/java/com/example/flink/WordCount.java](flink-jobs/word-count/src/main/java/com/example/flink/WordCount.java).
+See the sample job implementation in [flink-jobs/purchase-report/src/main/java/com/example/flink/purchaseReport.java](flink-jobs/purchase-report/src/main/java/com/example/flink/purchaseReport.java).
 
 
-Build with Maven using the provided [pom.xml](flink-jobs/word-count/pom.xml).
+Build with Maven using the provided [pom.xml](flink-jobs/purchase-report/pom.xml).
 
 
 Build and package using Maven as described in the pom.xml.
 
 
-See the Docker build instructions in [docker/word-count/Dockerfile](docker/word-count/Dockerfile).
+See the Docker build instructions in [docker/purchase-report/Dockerfile](docker/purchase-report/Dockerfile).
 
-Build and push the Docker image using the Dockerfile in docker/word-count/.
+Build and push the Docker image using the Dockerfile in docker/purchase-report/.
 
 
 Update your deployment YAML to use the built image as needed.
@@ -313,10 +297,10 @@ kubectl apply -f flink-application.yaml
 kubectl get flinkdeployment -n flink -w
 
 # Check job status
-kubectl get flinkdeployment word-count-app -n flink -o jsonpath='{.status.jobStatus.state}'
+kubectl get flinkdeployment purchase-report-app -n flink -o jsonpath='{.status.jobStatus.state}'
 Creating a Custom Flink Job
-Build a simple word count streaming application:
-// WordCount.java
+Build a simple purchase Report streaming application:
+// purchaseReport.java
 package com.example.flink;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -326,7 +310,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
 
-public class WordCount {
+public class purchaseReport {
     public static void main(String[] args) throws Exception {
         // Set up the streaming execution environment
         final StreamExecutionEnvironment env =
@@ -343,7 +327,7 @@ public class WordCount {
                 properties
             ));
 
-        // Parse and count words
+        // Parse and count purchase Reports
         DataStream<Tuple2<String, Integer>> counts = text
             .flatMap(new Tokenizer())
             .keyBy(value -> value.f0)
@@ -359,7 +343,7 @@ public class WordCount {
         ));
 
         // Execute program
-        env.execute("Streaming Word Count");
+        env.execute("Streaming purchase Report");
     }
 
     public static final class Tokenizer
@@ -424,22 +408,22 @@ Create Docker image with the JAR:
 FROM flink:1.18.0
 
 # Copy job JAR
-COPY target/word-count-1.0.jar /opt/flink/usrlib/word-count.jar
+COPY target/purchase-report-1.0.jar /opt/flink/usrlib/purchase-report.jar
 
 # Copy dependencies if needed
 COPY target/libs/*.jar /opt/flink/lib/
 Build and push:
-docker build -t your-registry/flink-word-count:1.0 .
-docker push your-registry/flink-word-count:1.0
+docker build -t your-registry/flink-purchase-report:1.0 .
+docker push your-registry/flink-purchase-report:1.0
 Deploying the Custom Job
 Update the FlinkDeployment to use your custom image:
 apiVersion: flink.apache.org/v1beta1
 kind: FlinkDeployment
 metadata:
-  name: word-count-app
+  name: purchase-report-app
   namespace: flink
 spec:
-  image: your-registry/flink-word-count:1.0
+  image: your-registry/flink-purchase-report:1.0
   flinkVersion: v1_18
 
   flinkConfiguration:
@@ -465,8 +449,8 @@ spec:
     replicas: 3
 
   job:
-    jarURI: local:///opt/flink/usrlib/word-count.jar
-    entryClass: com.example.flink.WordCount
+    jarURI: local:///opt/flink/usrlib/purchase-report.jar
+    entryClass: com.example.flink.purchaseReport
     args: []
     parallelism: 8
     upgradeMode: savepoint
@@ -511,34 +495,34 @@ spec:
 Scaling Flink Jobs
 Scale TaskManagers for more processing capacity:
 # Scale up TaskManagers
-kubectl patch flinkdeployment word-count-app -n flink --type merge \
+kubectl patch flinkdeployment purchase-report-app -n flink --type merge \
   -p '{"spec":{"taskManager":{"replicas":5}}}'
 
 # Increase parallelism
-kubectl patch flinkdeployment word-count-app -n flink --type merge \
+kubectl patch flinkdeployment purchase-report-app -n flink --type merge \
   -p '{"spec":{"job":{"parallelism":16}}}'
 The operator handles savepointing, stopping the job, updating configuration, and restarting from the savepoint automatically.
 Upgrading Jobs with Savepoints
 Update job code while preserving state:
 # Build new version
 mvn clean package
-docker build -t your-registry/flink-word-count:1.1 .
-docker push your-registry/flink-word-count:1.1
+docker build -t your-registry/flink-purchase-report:1.1 .
+docker push your-registry/flink-purchase-report:1.1
 
 # Update deployment with new image
-kubectl patch flinkdeployment word-count-app -n flink --type merge \
-  -p '{"spec":{"image":"your-registry/flink-word-count:1.1"}}'
+kubectl patch flinkdeployment purchase-report-app -n flink --type merge \
+  -p '{"spec":{"image":"your-registry/flink-purchase-report:1.1"}}'
 The operator automatically:
 1.	Triggers a savepoint
 2.	Cancels the running job
 3.	Deploys new version
 4.	Restarts from the savepoint
 Monitor upgrade progress:
-kubectl get flinkdeployment word-count-app -n flink -o yaml | grep -A5 jobStatus
+kubectl get flinkdeployment purchase-report-app -n flink -o yaml | grep -A5 jobStatus
 Monitoring Flink Jobs
 Access Flink Web UI:
 # Port forward to JobManager
-kubectl port-forward svc/word-count-app-rest -n flink 8081:8081
+kubectl port-forward svc/purchase-report-app-rest -n flink 8081:8081
 Open browser to http://localhost:8081 to view:
 •	Job topology and metrics
 •	Task parallelism and status
@@ -565,20 +549,17 @@ flinkConfiguration:
 Handling Failures and Recovery
 Flink automatically recovers from failures using checkpoints:
 # Simulate TaskManager failure
-kubectl delete pod word-count-app-taskmanager-1-1 -n flink
+make delete-taskmanager NAME=purchase-report-app-taskmanager-1-1
 
 # Watch recovery
-kubectl get pods -n flink -w
+make watch-pods
 The operator recreates failed pods, and Flink restores state from the last checkpoint. Processing continues with exactly-once guarantees.
 Managing Savepoints
 Trigger manual savepoints:
-# Create savepoint
-kubectl patch flinkdeployment word-count-app -n flink --type merge \
-  -p '{"spec":{"job":{"savepointTriggerNonce":1}}}'
+make trigger-savepoint
 
 # Check savepoint location
-kubectl get flinkdeployment word-count-app -n flink \
-  -o jsonpath='{.status.jobStatus.savepointInfo.lastSavepoint.location}'
+make get-savepoint-location
 Restore from specific savepoint:
 spec:
   job:

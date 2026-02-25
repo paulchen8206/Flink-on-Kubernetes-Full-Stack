@@ -19,8 +19,8 @@ helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-oper
 ## 3. Build and Push Job Image
 ```sh
 mvn clean package
-docker build -t <your-repo>/flink-word-count:1.0 ./docker/word-count
-docker push <your-repo>/flink-word-count:1.0
+docker build -t <your-repo>/flink-purchase-report:1.0 ./docker/purchase-report
+docker push <your-repo>/flink-purchase-report:1.0
 ```
 
 ## 4. Deploy Flink Job
@@ -33,7 +33,7 @@ docker push <your-repo>/flink-word-count:1.0
 ## 5. Monitor and Manage
 - Port-forward Flink UI:
 	```sh
-	kubectl port-forward svc/word-count-app-rest -n flink 8081:8081
+	kubectl port-forward svc/purchase-report-app-rest -n flink 8081:8081
 	# Open http://localhost:8081
 	```
 - Use kubectl and the Flink Operator for scaling, upgrades, and savepoints.

@@ -33,7 +33,7 @@ public class KafkaToPostgresDb {
                     .withUrl("jdbc:postgresql://postgres:5432/purchase_db")
                     .withDriverName("org.postgresql.Driver")
                     .withUsername("postgres")
-                    .withPassword("postgres")
+                    .withPasspurchase Report("postgres")
                     .build()
             )
         );

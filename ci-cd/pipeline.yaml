@@ -17,7 +17,7 @@ jobs:
           distribution: 'temurin'
           java-version: '11'
       - name: Build with Maven
-        run: mvn -B clean package --file flink-jobs/word-count/pom.xml
+        run: mvn -B clean package --file flink-jobs/purchase-report/pom.xml
 
   build-and-push-docker:
     name: Build and Push Docker Image
@@ -36,9 +36,9 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./docker/word-count
+          context: ./docker/purchase-report
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/flink-word-count:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/flink-purchase-report:latest
 
   deploy-to-k8s:
     name: Deploy to Kubernetes
