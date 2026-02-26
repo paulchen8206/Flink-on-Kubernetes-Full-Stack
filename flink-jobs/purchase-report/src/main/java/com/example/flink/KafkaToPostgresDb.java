@@ -19,7 +19,7 @@ public class KafkaToPostgresDb {
 
         DataStream<String> events = env.addSource(
             new FlinkKafkaConsumer<>(
-                "sales-events",
+                "store.purchases",
                 new SimpleStringSchema(),
                 kafkaProps
             )
@@ -27,7 +27,7 @@ public class KafkaToPostgresDb {
 
         events.addSink(
             JdbcSink.sink(
-                "INSERT INTO purchases (event_data) VALUES (?)",
+                "INSERT INTO purchases (store.purchases) VALUES (?)",
                 (ps, event) -> ps.setString(1, event),
                 new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
                     .withUrl("jdbc:postgresql://postgres:5432/purchase_db")

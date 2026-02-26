@@ -10,7 +10,8 @@ import time
 from csv import reader
 from datetime import datetime
 
-from kafka import KafkaProducer
+from kafka import KafkaProducer, errors
+from kafka.admin import KafkaAdminClient, NewTopic
 
 from config.kafka import get_configs
 from models.product import Product
@@ -49,7 +50,56 @@ products = []
 propensity_to_buy_range = []
 product_inventory = {}
 
+# Global KafkaProducer object
+producer = None
+
+def get_producer():
+    global producer
+    configs = get_configs()
+    if producer is None:
+        try:
+            producer = KafkaProducer(
+                value_serializer=lambda v: json.dumps(vars(v)).encode("utf-8"),
+                **configs,
+            )
+        except errors.NoBrokersAvailable:
+            print("No brokers available, retrying...")
+            time.sleep(2)
+            producer = None
+    return producer
+
+def create_kafka_topics():
+    configs = get_configs()
+    # Ensure bootstrap_servers is set for KafkaAdminClient
+    admin_config = {"bootstrap_servers": configs.get("bootstrap_servers", "kafka:9092")}
+    topics = [
+        NewTopic(name=topic_purchases, num_partitions=1, replication_factor=1),
+        NewTopic(name=topic_inventories, num_partitions=1, replication_factor=1)
+    ]
+    for attempt in range(10):
+        try:
+            admin = KafkaAdminClient(**admin_config)
+            admin.create_topics(new_topics=topics, validate_only=False)
+            print("Kafka topics created or already exist.")
+            admin.close()
+            return
+        except errors.NoBrokersAvailable:
+            print("No brokers available for admin, retrying...")
+            time.sleep(2)
+        except Exception as e:
+            print(f"Error creating topics (may already exist): {e}")
+            try:
+                admin.close()
+            except:
+                pass
+            return
+    print("Failed to create Kafka topics after retries.")
+
 def main():
+    # Add startup delay to allow Kafka to become fully ready
+    print("Waiting 10 seconds for Kafka to be fully ready...")
+    time.sleep(10)
+    create_kafka_topics()
     create_product_list()
     generate_sales()
 
@@ -152,14 +202,23 @@ def restock_item(product_id, state):
 
 # serialize object to json and publish message to kafka topic
 def publish_to_kafka(topic, message):
-    configs = get_configs()
-
-    producer = KafkaProducer(
-        value_serializer=lambda v: json.dumps(vars(v)).encode("utf-8"),
-        **configs,
-    )
-    producer.send(topic, value=message)
-    print("Topic: {0}, Value: {1}".format(topic, message))
+    global producer
+    for attempt in range(10):
+        prod = get_producer()
+        if prod:
+            try:
+                prod.send(topic, value=message)
+                prod.flush()
+                print("Topic: {0}, Value: {1}".format(topic, message))
+                return
+            except errors.NoBrokersAvailable:
+                print("No brokers available, reconnecting...")
+                producer = None
+                time.sleep(2)
+        else:
+            print("Producer not available, retrying...")
+            time.sleep(2)
+    print("Failed to publish to Kafka after retries.")
 
 
 # convert uppercase boolean values from CSV file to Python

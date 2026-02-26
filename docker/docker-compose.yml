@@ -1,4 +1,27 @@
 services:
+  salesgen:
+    build:
+      context: ../salesgen
+      dockerfile: Dockerfile
+    image: salesgen:latest
+    container_name: salesgen
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_BROKER=kafka:9092
+      - SALESGEN_TOPIC=sales-events
+      - SALESGEN_RATE=10
+    # SALESGEN_RATE: events per second
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8082:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+    depends_on:
+      - kafka
   postgres:
     image: postgres:15
     container_name: postgres
@@ -38,6 +61,8 @@ services:
     environment:
       - JOB_MANAGER_RPC_ADDRESS=jobmanager
     command: jobmanager
+    volumes:
+      - ./purchase-report-1.0-SNAPSHOT.jar:/opt/flink/job.jar
   taskmanager:
     image: flink:1.20.0
     container_name: flink-taskmanager
@@ -47,15 +72,6 @@ services:
       - JOB_MANAGER_RPC_ADDRESS=jobmanager
     command: taskmanager
   purchase-report-job:
-    # This service builds the image locally from ./Dockerfile.
-    # IMPORTANT: You must run 'mvn clean package' in ../flink-jobs/purchase-report first, so the JAR exists.
-    # Then copy the JAR into the docker directory:
-    #   cp ../flink-jobs/purchase-report/target/purchase-report-1.0-SNAPSHOT.jar ./
-    # Recommended workflow:
-    #   1. cd ../flink-jobs/purchase-report && mvn clean package
-    #   2. cd ../../docker && cp ../flink-jobs/purchase-report/target/purchase-report-1.0-SNAPSHOT.jar ./
-    #   3. docker compose build purchase-report-job
-    #   4. docker compose up -d
     build:
       context: .
       dockerfile: Dockerfile

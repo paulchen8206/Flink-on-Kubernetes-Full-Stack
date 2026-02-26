@@ -3,7 +3,7 @@
 JAR=flink-jobs/purchase-report/target/purchase-report-1.0-SNAPSHOT.jar
 JAR_DEST=docker/purchase-report-1.0-SNAPSHOT.jar
 
-.PHONY: all jar copy-jar build-salesgen build-purchase-report-job build up down logs clean
+.PHONY: all jar copy-jar build-salesgen build-purchase-report-job build up down logs clean wait-jobmanager submit-job check-purchases exec-pg-create-purchases
 
 all: build up
 
@@ -34,7 +34,21 @@ clean:
 	rm -f $(JAR_DEST)
 	cd docker && docker compose down -v
 
+wait-jobmanager:
+	./scripts/wait-for-flink-jobmanager.sh jobmanager 8081 120
+
+# Always submit the job from inside the Docker network
+# Usage: make -f Makefile.docker submit-job
+submit-job: wait-jobmanager
+	docker-compose -f docker/docker-compose.yml exec jobmanager flink run --jobmanager jobmanager:8081 -c com.example.flink.KafkaToPostgresDb /opt/flink/job.jar
+
 # Remove all stopped containers, unused networks, dangling images, and unused volumes
 prune:
 	docker system prune -f
 	docker volume prune -f
+
+check-purchases:
+	docker-compose -f docker/docker-compose.yml exec -T postgres psql -U postgres -d purchase_db -c 'SELECT * FROM purchases LIMIT 5;'
+
+exec-pg-create-purchases:
+	docker-compose -f docker/docker-compose.yml exec -T postgres psql -U postgres -d purchase_db -c "CREATE TABLE IF NOT EXISTS purchases (id SERIAL PRIMARY KEY, event_data TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"

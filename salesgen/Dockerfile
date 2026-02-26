@@ -6,11 +6,15 @@ WORKDIR /app
 # Copy application code
 COPY . /app
 
+
 # Install dependencies if requirements.txt exists
 RUN if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt; fi
+
+# Always install kafka-python for KafkaProducer
+RUN pip install --no-cache-dir kafka-python
 
 # Set environment variables if needed
 # ENV ...
 
-# Default command to run the salesgen app (update as needed)
-CMD ["python", "purchases.py"]
+# Wait for Kafka to be available before starting the app
+CMD python wait-for-kafka.py && python purchases.py
