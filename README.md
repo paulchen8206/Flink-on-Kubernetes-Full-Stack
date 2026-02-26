@@ -40,15 +40,18 @@ This project demonstrates a full streaming data pipeline:
 
 ```mermaid
 graph TD;
-  salesgen[Salesgen (Python)] --> kafka[Kafka: store.purchases, store.inventories];
-  kafka --> flink[Flink Job];
-  flink --> postgres[Postgres: purchases, purchase_inventory_merged];
-  flink --> mergedKafka[Kafka: purchase_inventory_merged];
-  flink -- checkpoints/savepoints --> s3[(S3/MinIO/LocalStack)];
-  flink --> prometheus[(Prometheus)];
-  kafka-ui-.->kafka;
-  dbeaver-.->postgres;
-  dbeaver-.->mergedKafka;
+  salesgen --> kafka_purchases["Kafka: store.purchases"];
+  salesgen --> kafka_inventories["Kafka: store.inventories"];
+  kafka_purchases --> flink["Flink Job"];
+  kafka_inventories --> flink;
+  flink --> postgres["Postgres: purchases, purchase_inventory_merged"];
+  flink --> mergedKafka["Kafka: purchase_inventory_merged"];
+  flink -- "checkpoints/savepoints" --> s3["S3/MinIO/LocalStack"];
+  flink --> prometheus["Prometheus"];
+  kafka_ui["Kafka UI"] -.-> kafka_purchases;
+  kafka_ui -.-> kafka_inventories;
+  dbeaver["DBeaver"] -.-> postgres;
+  dbeaver -.-> mergedKafka;
 ```
 
 This diagram shows how the Flink job writes merged data to both Postgres and Kafka, enabling analytics and monitoring from both sinks.
