@@ -233,36 +233,36 @@ DBeaver provides a graphical interface for:
 
 ---
 
-## Dual-Sink Streaming Architecture
-
-<div align="center">
+## Dual-Sink Streaming Architecture (GitHub Compatible)
 
 ```mermaid
 graph TD;
-  salesgen["<b>🛒 Salesgen<br/>(Python)</b>"] --> kafka["<b>🟦 Kafka<br/>store.purchases<br/>store.inventories</b>"]
-  kafka --> flink["<b>⚡ Flink Job</b>"]
-  flink --> postgres["<b>🗄️ Postgres<br/>purchases<br/>purchase_inventory_merged</b>"]
-  flink --> mergedKafka["<b>🟦 Kafka<br/>purchase_inventory_merged</b>"]
-  flink -- "checkpoints/savepoints" --> s3["<b>☁️ S3/MinIO/LocalStack</b>"]
-  flink --> prometheus["<b>📊 Prometheus</b>"]
-  kafka-ui-.->kafka["<b>🟦 Kafka</b>"]
-  dbeaver-.->postgres["<b>🗄️ Postgres</b>"]
-  dbeaver-.->mergedKafka["<b>🟦 Kafka</b>"]
+  salesgen --> kafka_purchases;
+  salesgen --> kafka_inventories;
+  kafka_purchases --> flink;
+  kafka_inventories --> flink;
+  flink --> postgres;
+  flink --> mergedKafka;
+  flink -- checkpoints/savepoints --> s3;
+  flink --> prometheus;
+  kafka_ui -.-> kafka_purchases;
+  kafka_ui -.-> kafka_inventories;
+  dbeaver -.-> postgres;
+  dbeaver -.-> mergedKafka;
+
+  salesgen[Salesgen (Python)]
+  kafka_purchases[Kafka: store.purchases]
+  kafka_inventories[Kafka: store.inventories]
+  flink[Flink Job]
+  postgres[Postgres: purchases, purchase_inventory_merged]
+  mergedKafka[Kafka: purchase_inventory_merged]
+  s3[S3/MinIO/LocalStack]
+  prometheus[Prometheus]
+  kafka_ui[Kafka UI]
+  dbeaver[DBeaver]
 ```
 
-</div>
-
-**Legend:**
-- <b>🟦 Blue nodes</b>: Kafka topics (source/sink)
-- <b>🗄️ Gray nodes</b>: Postgres sinks
-- <b>⚡ Flink Job</b>: Stream processing
-- <b>🛒 Salesgen</b>: Event generator
-- <b>☁️ S3/MinIO/LocalStack</b>: State backend
-- <b>📊 Prometheus</b>: Metrics/monitoring
-- <b>Dashed arrows</b>: Monitoring/analytics access
-- <b>Solid arrows</b>: Main data flow
-
-This diagram shows the detailed dual-sink architecture, with icons and clear roles for each component.
+This diagram is fully compatible with GitHub's Mermaid renderer and accurately shows the dual-sink streaming architecture.
 
 ---
 
