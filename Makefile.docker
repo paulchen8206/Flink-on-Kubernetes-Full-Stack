@@ -1,34 +1,21 @@
-flink-create-topic:
-	./scripts/create-kafka-topic.sh
-
-flink-run:
-	docker compose -f docker/docker-compose.yml exec jobmanager flink run --jobmanager localhost:8081 -c com.example.flink.KafkaToPostgresDb /opt/flink/job.jar
-ps:
-	docker compose -f docker/docker-compose.yml ps
-exec-jobmanager:
-	docker compose -f docker/docker-compose.yml exec jobmanager ls -l /opt/flink/conf/
-
-# Makefile.docker for building JAR, copying it, building Docker images, running docker compose, and automating database initialization
-
+# --- Makefile.docker for Flink/Kafka/Postgres stack ---
 # Usage:
-#   make -f Makefile.docker all         # Build and start the stack
-#   make -f Makefile.docker create-joined-table  # Ensure tables are created (now handled by pgsql/init.sql)
-#   make -f Makefile.docker submit-job  # Submit Flink job after stack is up
-#   make -f Makefile.docker logs        # View logs
-#   make -f Makefile.docker check-purchases  # Check sample records in purchases table
-
+#   make -f Makefile.docker all             # Build and start the stack (with topic and DB init)
+#   make -f Makefile.docker up              # Start containers (topic auto-created)
+#   make -f Makefile.docker flink-create-topic # Create Kafka topic manually
+#   make -f Makefile.docker rerun-init-sql  # Manually re-run pgsql/init.sql in Postgres
+#   make -f Makefile.docker submit-job      # Submit Flink job after stack is up
+#   make -f Makefile.docker logs            # View logs
+#   make -f Makefile.docker check-purchases # Check sample records in purchases table
 
 JAR=flink-jobs/purchase-report/target/purchase-report-1.0-SNAPSHOT.jar
 JAR_DEST=docker/purchase-report-1.0-SNAPSHOT.jar
 
-.PHONY: all jar copy-jar build-salesgen build-jobmanager build up down logs clean wait-jobmanager submit-job check-purchases exec-pg-create-purchases
+.PHONY: all jar copy-jar build-salesgen build-jobmanager build up down logs clean wait-jobmanager submit-job check-purchases exec-pg-create-purchases flink-create-topic rerun-init-sql
 
 all: build up flink-create-topic init-db submit-job
 
-# Automate database initialization (handled by pgsql/init.sql on container startup)
-init-db:
-	echo "Postgres tables and users are initialized automatically from pgsql/init.sql when the container starts."
-
+# Build and copy artifacts
 jar:
 	cd flink-jobs/purchase-report && mvn clean package
 
@@ -38,42 +25,52 @@ copy-jar: jar
 build-salesgen:
 	cd salesgen && docker build -t salesgen:latest .
 
-
 build-jobmanager: copy-jar
 	docker compose -f docker/docker-compose.yml build jobmanager
 
 build: build-salesgen build-jobmanager
 
-down:
-	docker compose -f docker/docker-compose.yml down
-
+# Container orchestration
 up:
 	docker compose -f docker/docker-compose.yml up -d
 	$(MAKE) flink-create-topic
 
-logs:
-	docker compose -f docker/docker-compose.yml logs -f
+down:
+	docker compose -f docker/docker-compose.yml down
 
 clean:
 	rm -f $(JAR_DEST)
 	docker compose -f docker/docker-compose.yml down -v
-	
-create-joined-table:
-	echo "Table creation is now handled automatically by Postgres container startup via pgsql/init.sql."
 
+prune:
+	docker system prune -f
+	docker volume prune -f
+
+logs:
+	docker compose -f docker/docker-compose.yml logs -f
+
+ps:
+	docker compose -f docker/docker-compose.yml ps
+
+exec-jobmanager:
+	docker compose -f docker/docker-compose.yml exec jobmanager ls -l /opt/flink/conf/
+
+# Flink job
+flink-create-topic:
+	./scripts/create-kafka-topic.sh
+
+flink-run:
+	docker compose -f docker/docker-compose.yml exec jobmanager flink run --jobmanager localhost:8081 -c com.example.flink.KafkaToPostgresDb /opt/flink/job.jar
+
+submit-job:
+	echo "Submitting Flink job..."
+	docker compose -f docker/docker-compose.yml exec jobmanager flink run --jobmanager localhost:8081 -c com.example.flink.KafkaToPostgresDb /opt/flink/job.jar || echo "Job submission failed. Check logs and dependencies."
 
 wait-jobmanager:
 	./scripts/wait-for-flink-jobmanager.sh jobmanager 8081 120
 
-# Always submit the job from inside the Docker network
-# Usage: make -f Makefile.docker submit-job
-	echo "Submitting Flink job..."
-	docker compose -f docker/docker-compose.yml exec jobmanager flink run --jobmanager localhost:8081 -c com.example.flink.KafkaToPostgresDb /opt/flink/job.jar || echo "Job submission failed. Check logs and dependencies."
-
-# Remove all stopped containers, unused networks, dangling images, and unused volumes
-prune:
-	docker system prune -f
-	docker volume prune -f
+rerun-init-sql:
+	docker compose -f docker/docker-compose.yml exec -T postgres psql -U postgres -d purchase_db -f /docker-entrypoint-initdb.d/init.sql
 
 check-purchases:
 	docker-compose -f docker/docker-compose.yml exec -T postgres psql -U postgres -d purchase_db -c 'SELECT * FROM purchases LIMIT 5;'

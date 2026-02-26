@@ -58,9 +58,10 @@ Deploy and manage Apache Flink jobs on Kubernetes with a modern, production-read
 ## Overview & Architecture
 
 This project demonstrates a full streaming data pipeline:
-- **Flink job**: Reads purchase events from Kafka, writes to PostgreSQL
+- **Flink job**: Reads purchase events from Kafka, writes to PostgreSQL and Kafka (purchase_inventory_merged)
 - **Kafka**: Event broker for streaming data
 - **Postgres**: Sink for processed events
+- **Kafka (purchase_inventory_merged)**: Sink for merged/processed events
 - **salesgen**: Synthetic event generator for Kafka
 - **LocalStack/MinIO**: S3-compatible storage for state backend (optional)
 - **Helm/K8s**: Production deployment
@@ -68,16 +69,20 @@ This project demonstrates a full streaming data pipeline:
 
 ```mermaid
 graph TD;
-  salesgen-->kafka;
-  kafka-->flink;
-  flink-->postgres;
-  flink-->|checkpoints/savepoints|s3[(S3/MinIO/LocalStack)];
-  flink-->prometheus[(Prometheus)];
+  salesgen[Salesgen (Python)] --> kafka[Kafka: store.purchases, store.inventories];
+  kafka --> flink[Flink Job];
+  flink --> postgres[Postgres: purchases, purchase_inventory_merged];
+  flink --> mergedKafka[Kafka: purchase_inventory_merged];
+  flink -- checkpoints/savepoints --> s3[(S3/MinIO/LocalStack)];
+  flink --> prometheus[(Prometheus)];
   kafka-ui-.->kafka;
+  dbeaver-.->postgres;
+  dbeaver-.->mergedKafka;
 ```
 
----
+This diagram shows how the Flink job writes merged data to both Postgres and Kafka, enabling analytics and monitoring from both sinks.
 
+---
 
 ## Repository Structure
 
@@ -234,4 +239,138 @@ kubectl port-forward svc/purchase-report-app-rest -n flink 8081:8081
 ## License
 
 Apache License 2.0
+
+---
+
+## Postgres Data Analysis with DBeaver
+
+For advanced data analysis and monitoring, you can use [DBeaver](https://dbeaver.io/) (or any SQL client) to connect to the running Postgres instance:
+
+- **Host:** localhost
+- **Port:** 5432
+- **Database:** purchase_db
+- **User:** postgres
+- **Password:** postgres
+
+DBeaver provides a graphical interface for:
+- Inspecting and querying tables (e.g., purchases, purchase_inventory_merged)
+- Visualizing data and running analytics
+- Monitoring schema changes and table growth
+- Exporting results for reporting
+
+> Tip: You can use DBeaver's ER diagrams, data export, and SQL editor for deeper insights into your streaming pipeline results.
+
+---
+
+## Dual-Sink Streaming Architecture
+
+<div align="center">
+
+```mermaid
+graph TD;
+  salesgen["<b>🛒 Salesgen<br/>(Python)</b>"] --> kafka["<b>🟦 Kafka<br/>store.purchases<br/>store.inventories</b>"]
+  kafka --> flink["<b>⚡ Flink Job</b>"]
+  flink --> postgres["<b>🗄️ Postgres<br/>purchases<br/>purchase_inventory_merged</b>"]
+  flink --> mergedKafka["<b>🟦 Kafka<br/>purchase_inventory_merged</b>"]
+  flink -- "checkpoints/savepoints" --> s3["<b>☁️ S3/MinIO/LocalStack</b>"]
+  flink --> prometheus["<b>📊 Prometheus</b>"]
+  kafka-ui-.->kafka["<b>🟦 Kafka</b>"]
+  dbeaver-.->postgres["<b>🗄️ Postgres</b>"]
+  dbeaver-.->mergedKafka["<b>🟦 Kafka</b>"]
+```
+
+</div>
+
+**Legend:**
+- <b>🟦 Blue nodes</b>: Kafka topics (source/sink)
+- <b>🗄️ Gray nodes</b>: Postgres sinks
+- <b>⚡ Flink Job</b>: Stream processing
+- <b>🛒 Salesgen</b>: Event generator
+- <b>☁️ S3/MinIO/LocalStack</b>: State backend
+- <b>📊 Prometheus</b>: Metrics/monitoring
+- <b>Dashed arrows</b>: Monitoring/analytics access
+- <b>Solid arrows</b>: Main data flow
+
+This diagram shows the detailed dual-sink architecture, with icons and clear roles for each component.
+
+---
+
+## Detailed Data Flow: Dual-Sink Streaming Pipeline
+
+<div align="center">
+
+```mermaid
+graph LR;
+  subgraph Ingestion
+    salesgen["<b>🛒 Salesgen<br/>(Python)</b>"]
+    salesgen -- "purchase events" --> kafkaIn["<b>🟦 Kafka<br/>store.purchases</b>"]
+    salesgen -- "inventory events" --> kafkaInv["<b>🟦 Kafka<br/>store.inventories</b>"]
+  end
+
+  subgraph Processing
+    flink["<b>⚡ Flink Job<br/>KafkaToPostgresDb.java</b>"]
+  end
+
+  subgraph Sinks
+    postgres["<b>🗄️ Postgres<br/>purchases<br/>purchase_inventory_merged</b>"]
+    mergedKafka["<b>🟦 Kafka<br/>purchase_inventory_merged</b>"]
+  end
+
+  subgraph Monitoring
+    prometheus["<b>📊 Prometheus</b>"]
+    kafkaUI["<b>🔎 Kafka UI</b>"]
+    dbeaver["<b>🖥️ DBeaver</b>"]
+  end
+
+  subgraph State
+    s3["<b>☁️ S3/MinIO/LocalStack</b>"]
+  end
+
+  kafkaIn --> flink
+  kafkaInv --> flink
+  flink -- "merged JSON" --> postgres
+  flink -- "merged JSON" --> mergedKafka
+  flink -- "checkpoints/savepoints" --> s3
+  flink --> prometheus
+  kafkaUI -.-> kafkaIn
+  kafkaUI -.-> kafkaInv
+  dbeaver -.-> postgres
+  dbeaver -.-> mergedKafka
+
+```
+
+</div>
+
+**Legend:**
+- <b>🟦 Blue nodes</b>: Kafka topics (source/sink)
+- <b>🗄️ Gray nodes</b>: Postgres sinks
+- <b>⚡ Flink Job</b>: Stream processing
+- <b>🛒 Salesgen</b>: Event generator
+- <b>☁️ S3/MinIO/LocalStack</b>: State backend
+- <b>📊 Prometheus</b>: Metrics/monitoring
+- <b>🔎 Kafka UI</b>: Kafka topic browser
+- <b>🖥️ DBeaver</b>: Data analysis
+- <b>Dashed arrows</b>: Monitoring/analytics access
+- <b>Solid arrows</b>: Main data flow
+
+---
+
+## Component Interaction Overview
+
+```mermaid
+graph TD;
+  A["🛒 Salesgen"] -->|"store.purchases"| B["🟦 Kafka"]
+  A -->|"store.inventories"| B
+  B -->|"purchase events"| C["⚡ Flink Job"]
+  B -->|"inventory events"| C
+  C -->|"merged JSON"| D["🗄️ Postgres"]
+  C -->|"merged JSON"| E["🟦 Kafka<br/>purchase_inventory_merged"]
+  C -- "metrics" --> F["📊 Prometheus"]
+  C -- "checkpoints" --> G["☁️ S3/MinIO"]
+  H["🖥️ DBeaver"] -.-> D
+  H -.-> E
+  I["🔎 Kafka UI"] -.-> B
+```
+
+---
 

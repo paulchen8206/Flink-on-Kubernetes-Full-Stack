@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: {{ include "flink.fullname" . }}-jobmanager
 spec:
-  type: {{ .Values.service.type }}
+  type: "{{ .Values.service.type }}"
   ports:
     - port: {{ .Values.service.port }}
       targetPort: 8081

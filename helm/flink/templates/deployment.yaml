@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: "{{ include "flink.fullname" . }}-jobmanager"
+  name: {{ include "flink.fullname" . }}-jobmanager
 spec:
   replicas: 1
   selector:
@@ -17,7 +17,7 @@ spec:
       containers:
         - name: jobmanager
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: "{{ .Values.image.pullPolicy }}"
           ports:
             - containerPort: 8081
           env:
@@ -49,11 +49,11 @@ spec:
               value: {{ .Values.job.parallelism | quote }}
           resources:
             requests:
-              cpu: {{ .Values.resources.jobmanager.requests.cpu | quote }}
-              memory: {{ .Values.resources.jobmanager.requests.memory | quote }}
+              cpu: "{{ .Values.resources.jobmanager.requests.cpu }}"
+              memory: "{{ .Values.resources.jobmanager.requests.memory }}"
             limits:
-              cpu: {{ .Values.resources.jobmanager.limits.cpu | quote }}
-              memory: {{ .Values.resources.jobmanager.limits.memory | quote }}
+              cpu: "{{ .Values.resources.jobmanager.limits.cpu }}"
+              memory: "{{ .Values.resources.jobmanager.limits.memory }}"
           volumeMounts:
             - name: job-config
               mountPath: {{ .Values.job.configFile }}
