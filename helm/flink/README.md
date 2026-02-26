@@ -1,6 +1,3 @@
-## Scaling & Upgrading
-
-See the README and scripts for scaling, upgrading, and patching deployments. Use kubectl patch and the provided scripts for automation.
 # Flink Helm Chart
 
 This Helm chart deploys Apache Flink JobManager and related resources on Kubernetes.
@@ -21,6 +18,9 @@ This Helm chart deploys Apache Flink JobManager and related resources on Kuberne
    helm upgrade my-flink ./helm/flink
    helm uninstall my-flink
    ```
+
+## Scaling & Upgrading
+Use `helm upgrade` for configuration changes or new images. For advanced scaling and patching, see project scripts and the main README.
 
 ## References
 - [Helm Documentation](https://helm.sh/docs/)

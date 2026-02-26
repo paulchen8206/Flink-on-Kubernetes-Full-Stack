@@ -22,8 +22,8 @@ This module contains the Flink application for consuming Kafka events and sinkin
 - Ensure Kafka, Postgres, and other dependencies are running.
 
 ## Customization
-- Edit KafkaToPostgresDb.java for custom logic.
-- Update pom.xml for dependencies.
+- Edit `KafkaToPostgresDb.java` for custom logic.
+- Update `pom.xml` for dependencies.
 
 ## References
 - [Flink Documentation](https://nightlies.apache.org/flink/)
