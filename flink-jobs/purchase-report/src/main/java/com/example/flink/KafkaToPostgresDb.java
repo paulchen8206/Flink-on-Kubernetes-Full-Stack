@@ -14,7 +14,7 @@ public class KafkaToPostgresDb {
         env.enableCheckpointing(10000);
 
         Properties kafkaProps = new Properties();
-        kafkaProps.setProperty("bootstrap.servers", "kafka:9092");
+        kafkaProps.setProperty("bootstrap.servers", "172.18.0.4:9092");
         kafkaProps.setProperty("group.id", "flink-consumer");
 
         DataStream<String> events = env.addSource(
@@ -27,7 +27,7 @@ public class KafkaToPostgresDb {
 
         events.addSink(
             JdbcSink.sink(
-                "INSERT INTO purchases (store.purchases) VALUES (?)",
+                "INSERT INTO purchases (event_data) VALUES (?)",
                 (ps, event) -> ps.setString(1, event),
                 new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
                     .withUrl("jdbc:postgresql://postgres:5432/purchase_db")

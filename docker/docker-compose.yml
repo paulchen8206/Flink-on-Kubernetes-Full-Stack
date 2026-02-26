@@ -54,7 +54,7 @@ services:
       - ALLOW_ANONYMOUS_LOGIN=yes
       - ZOOKEEPER_CLIENT_PORT=2181
   jobmanager:
-    image: flink:1.20.0
+    image: purchase-report-job:latest
     container_name: flink-jobmanager
     ports:
       - "8081:8081"
@@ -64,7 +64,7 @@ services:
     volumes:
       - ./purchase-report-1.0-SNAPSHOT.jar:/opt/flink/job.jar
   taskmanager:
-    image: flink:1.20.0
+    image: purchase-report-job:latest
     container_name: flink-taskmanager
     depends_on:
       - jobmanager
