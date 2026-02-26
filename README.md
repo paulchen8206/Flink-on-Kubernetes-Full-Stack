@@ -1,3 +1,27 @@
+## Database & Table Initialization
+
+Postgres tables and users are initialized automatically when the container starts, using the unified DDL script at `pgsql/init.sql`. No manual table creation is required.
+
+## Automation & Makefile Usage
+
+The `Makefile.docker` automates build, startup, database initialization, and job submission:
+
+```sh
+make -f Makefile.docker all
+# Builds, starts stack, initializes DB, submits Flink job
+```
+
+Other useful targets:
+- `make -f Makefile.docker logs` — View logs
+- `make -f Makefile.docker check-purchases` — Check sample records in purchases table
+- `make -f Makefile.docker create-joined-table` — (No-op, handled by init.sql)
+
+## Troubleshooting
+
+- If job submission fails, check logs with `make -f Makefile.docker logs`.
+- Ensure Postgres is healthy and tables exist (see `pgsql/init.sql`).
+- For database errors, restart the stack to re-initialize tables.
+- For dependency issues, rebuild with `make -f Makefile.docker build`.
 ---
 ---
 

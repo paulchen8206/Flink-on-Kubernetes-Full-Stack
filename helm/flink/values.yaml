@@ -9,10 +9,37 @@ job:
   jar: /opt/flink/job.jar
   mainClass: com.example.flink.purchaseReport
   args: []
+  kafkaBootstrap: kafka:9092
+  purchasesTopic: store.purchases
+  inventoriesTopic: store.inventories
+  groupIdPrefix: flink-job
+  pgHost: postgres
+  pgPort: 5432
+  pgDb: purchase_db
+  pgUser: postgres
+  pgPassword: postgres
+  mergedTable: purchase_inventory_merged
+  checkpointInterval: 10000
+  parallelism: 1
+  configFile: /opt/flink/flink-job-config.yaml
+resources:
+  jobmanager:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+  taskmanager:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "1"
+      memory: "2Gi"
 service:
   type: ClusterIP
   port: 8081
-resources: {}
 nodeSelector: {}
 tolerations: []
 affinity: {}

@@ -138,7 +138,17 @@ public class KafkaToPostgresDb {
             )
         );
 
-        env.execute("Kafka Join to Postgres Sink");
+        // Sink merged JSON to Kafka topic purchase_inventory_merged
+        org.apache.flink.connector.kafka.sink.KafkaSink<String> mergedKafkaSink = org.apache.flink.connector.kafka.sink.KafkaSink.<String>builder()
+            .setBootstrapServers(kafkaBootstrap)
+            .setRecordSerializer(org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema.builder()
+                .setTopic("purchase_inventory_merged")
+                .setValueSerializationSchema(new SimpleStringSchema())
+                .build())
+            .build();
+        joined.sinkTo(mergedKafkaSink);
+
+        env.execute("Kafka Join to Postgres and Kafka Sink");
     }
     // FlatMapFunction for joining Purchase and Inventory by product_id and merging as JSON
     public static class PurchaseInventoryEnrichment extends org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction<Purchase, Inventory, String> {

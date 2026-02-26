@@ -1,3 +1,40 @@
+## Configuration Improvements
+
+This chart now supports:
+- Custom job parameters (Kafka, Postgres, Flink) via values.yaml
+- Resource requests/limits for JobManager and TaskManager
+- Automatic mounting of a YAML config file (flink-job-config.yaml) via ConfigMap
+
+### Example values.yaml
+See values.yaml for all configurable options. Example:
+
+```yaml
+job:
+   kafkaBootstrap: kafka:9092
+   purchasesTopic: store.purchases
+   inventoriesTopic: store.inventories
+   groupIdPrefix: flink-job
+   pgHost: postgres
+   pgPort: 5432
+   pgDb: purchase_db
+   pgUser: postgres
+   pgPassword: postgres
+   mergedTable: purchase_inventory_merged
+   checkpointInterval: 10000
+   parallelism: 1
+   configFile: /opt/flink/flink-job-config.yaml
+resources:
+   jobmanager:
+      requests:
+         cpu: "500m"
+         memory: "1Gi"
+      limits:
+         cpu: "1"
+         memory: "2Gi"
+```
+
+### Custom Config File
+The chart automatically mounts a YAML config file (flink-job-config.yaml) to the container, generated from values.yaml. Your Flink job can read this file for runtime configuration.
 # Flink Helm Chart
 
 This Helm chart deploys Apache Flink JobManager and related resources on Kubernetes.

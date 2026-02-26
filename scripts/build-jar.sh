@@ -1,11 +1,17 @@
 
+
 #!/bin/bash
 # Build the Flink job JAR using Maven
 # Usage: ./build-jar.sh
+
 set -e
 
-# Change to the Flink job directory
-cd flink-jobs/purchase-report
+if ! command -v mvn &> /dev/null; then
+	echo "Maven (mvn) not found. Please install Maven and try again."
+	exit 1
+fi
 
-# Build the Maven project and create the job JAR
-mvn clean package
+cd flink-jobs/purchase-report || { echo "Directory flink-jobs/purchase-report not found."; exit 1; }
+
+mvn clean package || { echo "Maven build failed."; exit 1; }
+echo "JAR build complete: target/purchase-report-1.0-SNAPSHOT.jar"

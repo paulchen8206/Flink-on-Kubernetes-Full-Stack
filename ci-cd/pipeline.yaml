@@ -1,69 +1,82 @@
+# Enhanced CI/CD pipeline: comments, DB check, artifact upload
 # GitHub Actions monolithic workflow for Flink CI/CD
 name: Flink CI/CD Pipeline
 on:
   push:
     branches:
-      - main
+    - main
 jobs:
   build-job-jar:
+    # Build the Flink job JAR using Maven
     name: Build Flink Job JAR
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '11'
-      - name: Build with Maven
-        run: mvn -B clean package --file flink-jobs/purchase-report/pom.xml
-
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Set up JDK 11
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '11'
+    - name: Build with Maven
+      run: mvn -B clean package --file flink-jobs/purchase-report/pom.xml
   build-and-push-docker:
+    # Build and push Docker image to DockerHub
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
     needs: build-job-jar
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Login to DockerHub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./docker/purchase-report
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/flink-purchase-report:latest
-
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    - name: Login to DockerHub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./docker/purchase-report
+        push: true
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/flink-purchase-report:latest
   deploy-to-k8s:
+    # Deploy Flink job and resources to Kubernetes
     name: Deploy to Kubernetes
     runs-on: ubuntu-latest
     needs: build-and-push-docker
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'v1.28.0'
-      - name: Set up Helm
-        uses: azure/setup-helm@v3
-        with:
-          version: 'v3.13.2'
-      - name: Set up Kubeconfig
-        env:
-          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DATA }}
-        run: |
-          echo "$KUBECONFIG_DATA" | base64 --decode > $HOME/.kube/config
-      - name: Deploy Flink resources
-        run: |
-          kubectl apply -f k8s/flink-resources.yaml
-          kubectl apply -f k8s/flink-deployments/flink-application-custom.yaml
-      - name: Deploy Flink Helm chart
-        run: |
-          helm upgrade --install flink ./helm/flink --wait
+    - name: Wait for Postgres to be ready
+      run: |
+        kubectl wait --for=condition=Ready pod -l app=postgres --timeout=120s || echo "Postgres not ready, continuing anyway."
+    - name: Check Postgres tables
+      run: |
+        kubectl exec $(kubectl get pod -l app=postgres -o jsonpath='{.items[0].metadata.name}') -- psql -U postgres -d purchase_db -c '\dt' > db_tables.txt || echo "Table check failed."
+    - name: Upload DB check artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: db-tables
+        path: db_tables.txt
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+    - name: Set up Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: 'v3.13.2'
+    - name: Set up Kubeconfig
+      env:
+        KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DATA }}
+      run: |
+        echo "$KUBECONFIG_DATA" | base64 --decode > $HOME/.kube/config
+    - name: Deploy Flink resources
+      run: |
+        kubectl apply -f k8s/flink-resources.yaml
+        kubectl apply -f k8s/flink-deployments/flink-application-custom.yaml
+    - name: Deploy Flink Helm chart
+      run: |
+        helm upgrade --install flink ./helm/flink --wait

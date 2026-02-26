@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "flink.fullname" . }}-jobmanager
+  name: "{{ include "flink.fullname" . }}-jobmanager"
 spec:
   replicas: 1
   selector:
@@ -23,4 +23,43 @@ spec:
           env:
             - name: JOB_MANAGER_RPC_ADDRESS
               value: jobmanager
+            - name: KAFKA_BOOTSTRAP
+              value: {{ .Values.job.kafkaBootstrap | quote }}
+            - name: PURCHASES_TOPIC
+              value: {{ .Values.job.purchasesTopic | quote }}
+            - name: INVENTORIES_TOPIC
+              value: {{ .Values.job.inventoriesTopic | quote }}
+            - name: GROUP_ID_PREFIX
+              value: {{ .Values.job.groupIdPrefix | quote }}
+            - name: PG_HOST
+              value: {{ .Values.job.pgHost | quote }}
+            - name: PG_PORT
+              value: {{ .Values.job.pgPort | quote }}
+            - name: PG_DB
+              value: {{ .Values.job.pgDb | quote }}
+            - name: PG_USER
+              value: {{ .Values.job.pgUser | quote }}
+            - name: PG_PASSWORD
+              value: {{ .Values.job.pgPassword | quote }}
+            - name: MERGED_TABLE
+              value: {{ .Values.job.mergedTable | quote }}
+            - name: CHECKPOINT_INTERVAL
+              value: {{ .Values.job.checkpointInterval | quote }}
+            - name: PARALLELISM
+              value: {{ .Values.job.parallelism | quote }}
+          resources:
+            requests:
+              cpu: {{ .Values.resources.jobmanager.requests.cpu | quote }}
+              memory: {{ .Values.resources.jobmanager.requests.memory | quote }}
+            limits:
+              cpu: {{ .Values.resources.jobmanager.limits.cpu | quote }}
+              memory: {{ .Values.resources.jobmanager.limits.memory | quote }}
+          volumeMounts:
+            - name: job-config
+              mountPath: {{ .Values.job.configFile }}
+              subPath: flink-job-config.yaml
           command: ["jobmanager"]
+      volumes:
+        - name: job-config
+          configMap:
+            name: flink-job-config
