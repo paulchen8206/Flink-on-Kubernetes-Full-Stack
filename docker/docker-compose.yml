@@ -1,7 +1,6 @@
-version: '3.8'
 services:
   jobmanager:
-    image: flink:1.18.0
+    image: flink:1.20.0
     container_name: flink-jobmanager
     ports:
       - "8081:8081"
@@ -9,7 +8,7 @@ services:
       - JOB_MANAGER_RPC_ADDRESS=jobmanager
     command: jobmanager
   taskmanager:
-    image: flink:1.18.0
+    image: flink:1.20.0
     container_name: flink-taskmanager
     depends_on:
       - jobmanager
@@ -19,7 +18,7 @@ services:
   purchase-report-job:
     build:
       context: .
-      dockerfile: docker/Dockerfile
+      dockerfile: Dockerfile
     image: purchase-report-job:latest
     container_name: purchase-report-job
     depends_on:
@@ -62,7 +61,7 @@ services:
 
   # Kafka stack
   kafka:
-    image: bitnami/kafka:3.6.0
+    image: confluentinc/cp-kafka:7.6.1
     container_name: kafka
     ports:
       - "9092:9092"
@@ -75,7 +74,7 @@ services:
       - zookeeper
 
   zookeeper:
-    image: bitnami/zookeeper:3.8.0
+    image: confluentinc/cp-zookeeper:7.6.1
     container_name: zookeeper
     ports:
       - "2181:2181"
@@ -84,7 +83,10 @@ services:
 
   # Event generator
   salesgen:
-    image: ghcr.io/datastack-net/salesgen:latest
+    build:
+      context: ../salesgen
+      dockerfile: Dockerfile
+    image: salesgen:latest
     container_name: salesgen
     depends_on:
       - kafka
