@@ -22,6 +22,10 @@
 - Retain multiple savepoints for rollback.
 - Regularly test failure and recovery scenarios.
 
+## Additional Best Practices
+- Monitor backpressure
+- Test savepoint compatibility
+
 ## 6. Security
 - Use Kubernetes secrets for sensitive data (e.g., S3 credentials).
 - Restrict RBAC permissions to least privilege.

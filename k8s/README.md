@@ -1,3 +1,17 @@
+## Failure Recovery & Savepoints
+
+See the scripts and deployment notes for failure recovery, savepoints, and restore procedures.
+## Monitoring
+
+Access the Flink Web UI by port-forwarding the JobManager service. See the scripts and deployment notes for details.
+
+Prometheus monitoring example: see monitoring/servicemonitor.yaml.
+
+See monitoring/servicemonitor.yaml and your flinkConfiguration for Prometheus integration.
+## State Backend with S3
+For production, use S3 for checkpoints/savepoints. Create a secret:
+
+See secrets/s3-credentials.yaml for the S3 secret example. Reference the secret in your deployment and set S3 config in flinkConfiguration.
 # Kubernetes Manifests for Flink
 
 This directory contains Kubernetes manifests for deploying and managing Apache Flink and related resources.
@@ -15,5 +29,9 @@ This directory contains Kubernetes manifests for deploying and managing Apache F
 - See the main project README and docs/deployment-guide.md for deployment instructions.
 
 ## References
-- [Flink Kubernetes Operator](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/)
-- [Kubernetes Documentation](https://kubernetes.io/docs/)
+
+## Deploying a Flink Application
+See the deployment manifest in [flink-deployments/flink-application.yaml](flink-deployments/flink-application.yaml) and supporting resources in [flink-resources.yaml](flink-resources.yaml).
+These files define the FlinkDeployment and required Kubernetes resources for running Flink on Kubernetes.
+
+To deploy and monitor, use the provided manifests and scripts. See this directory for YAML files and ../scripts/ for automation.
