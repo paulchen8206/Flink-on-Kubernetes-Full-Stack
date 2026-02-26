@@ -38,6 +38,8 @@ logs:
 	docker compose -f docker/docker-compose.yml logs -f
 
 clean:
+create-joined-table:
+	./scripts/create-joined-table.sh
 	rm -f $(JAR_DEST)
 	docker compose -f docker/docker-compose.yml down -v
 

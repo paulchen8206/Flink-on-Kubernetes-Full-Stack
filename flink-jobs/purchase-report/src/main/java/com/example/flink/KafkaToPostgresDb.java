@@ -68,11 +68,40 @@ public class KafkaToPostgresDb {
             .flatMap(new PurchaseInventoryEnrichment(mapper))
             .returns(String.class);
 
-        // Sink merged JSON to Postgres using classic JdbcSink (deprecated)
+        // Sink merged JSON to purchase_inventory_merged with column mapping
         joined.addSink(
             JdbcSink.sink(
-                "INSERT INTO purchases (event_data) VALUES (?)",
-                (ps, event) -> ps.setString(1, event),
+                "INSERT INTO purchase_inventory_merged (transaction_time, transaction_id, product_id, price, quantity, state, is_member, member_discount, add_supplements, supplement_price, total_purchase, event_time, existing_level, stock_quantity, new_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (ps, event) -> {
+                    try {
+                        com.fasterxml.jackson.databind.JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(event);
+                        ps.setTimestamp(1, java.sql.Timestamp.valueOf(node.path("transaction_time").asText()));
+                        ps.setString(2, node.path("transaction_id").asText());
+                        ps.setString(3, node.path("product_id").asText());
+                        ps.setDouble(4, node.path("price").asDouble());
+                        ps.setInt(5, node.path("quantity").asInt());
+                        ps.setString(6, node.path("state").asText());
+                        ps.setBoolean(7, node.path("is_member").asBoolean());
+                        ps.setDouble(8, node.path("member_discount").asDouble());
+                        ps.setBoolean(9, node.path("add_supplements").asBoolean());
+                        ps.setDouble(10, node.path("supplement_price").asDouble());
+                        ps.setDouble(11, node.path("total_purchase").asDouble());
+                        // event_time may have microseconds, so parse safely
+                        String eventTimeStr = node.path("event_time").asText();
+                        java.sql.Timestamp eventTime = null;
+                        try {
+                            eventTime = java.sql.Timestamp.valueOf(eventTimeStr.split(".")[0]);
+                        } catch (Exception e) {
+                            eventTime = null;
+                        }
+                        ps.setTimestamp(12, eventTime);
+                        ps.setInt(13, node.path("existing_level").asInt());
+                        ps.setInt(14, node.path("stock_quantity").asInt());
+                        ps.setInt(15, node.path("new_level").asInt());
+                    } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                        throw new RuntimeException(e);
+                    }
+                },
                 new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
                     .withUrl("jdbc:postgresql://postgres:5432/purchase_db")
                     .withDriverName("org.postgresql.Driver")
@@ -87,7 +116,7 @@ public class KafkaToPostgresDb {
     // FlatMapFunction for joining Purchase and Inventory by product_id and merging as JSON
     public static class PurchaseInventoryEnrichment extends org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction<Purchase, Inventory, String> {
         private final ObjectMapper mapper;
-        private Inventory latestInventory;
+        private final java.util.Map<String, Inventory> inventoryByProduct = new java.util.HashMap<>();
 
         public PurchaseInventoryEnrichment(ObjectMapper mapper) {
             this.mapper = mapper;
@@ -96,14 +125,12 @@ public class KafkaToPostgresDb {
 
         @Override
         public void flatMap1(Purchase purchase, org.apache.flink.util.Collector<String> out) throws Exception {
-            if (latestInventory != null && purchase.product_id.equals(latestInventory.product_id)) {
-                // Merge all fields from both sources at the top level
+            Inventory inventory = inventoryByProduct.get(purchase.product_id);
+            if (inventory != null) {
                 ObjectNode merged = mapper.createObjectNode();
-                // Add all purchase fields
                 ObjectNode purchaseNode = mapper.valueToTree(purchase);
                 purchaseNode.fieldNames().forEachRemaining(field -> merged.set(field, purchaseNode.get(field)));
-                // Add all inventory fields (may overwrite if same name)
-                ObjectNode inventoryNode = mapper.valueToTree(latestInventory);
+                ObjectNode inventoryNode = mapper.valueToTree(inventory);
                 inventoryNode.fieldNames().forEachRemaining(field -> merged.set(field, inventoryNode.get(field)));
                 out.collect(mapper.writeValueAsString(merged));
             }
@@ -111,7 +138,7 @@ public class KafkaToPostgresDb {
 
         @Override
         public void flatMap2(Inventory inventory, org.apache.flink.util.Collector<String> out) {
-            this.latestInventory = inventory;
+            inventoryByProduct.put(inventory.product_id, inventory);
         }
     }
 }
