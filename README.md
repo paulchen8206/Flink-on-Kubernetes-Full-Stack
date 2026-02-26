@@ -237,29 +237,18 @@ DBeaver provides a graphical interface for:
 
 ```mermaid
 graph TD;
-  salesgen --> kafka_purchases;
-  salesgen --> kafka_inventories;
-  kafka_purchases --> flink;
+  salesgen["Salesgen (Python)"] --> kafka_purchases["Kafka: store.purchases"];
+  salesgen --> kafka_inventories["Kafka: store.inventories"];
+  kafka_purchases --> flink["Flink Job"];
   kafka_inventories --> flink;
-  flink --> postgres;
-  flink --> mergedKafka;
-  flink -- checkpoints/savepoints --> s3;
-  flink --> prometheus;
-  kafka_ui -.-> kafka_purchases;
+  flink --> postgres["Postgres: purchases, purchase_inventory_merged"];
+  flink --> mergedKafka["Kafka: purchase_inventory_merged"];
+  flink -- "checkpoints/savepoints" --> s3["S3/MinIO/LocalStack"];
+  flink --> prometheus["Prometheus"];
+  kafka_ui["Kafka UI"] -.-> kafka_purchases;
   kafka_ui -.-> kafka_inventories;
-  dbeaver -.-> postgres;
+  dbeaver["DBeaver"] -.-> postgres;
   dbeaver -.-> mergedKafka;
-
-  salesgen[Salesgen (Python)]
-  kafka_purchases[Kafka: store.purchases]
-  kafka_inventories[Kafka: store.inventories]
-  flink[Flink Job]
-  postgres[Postgres: purchases, purchase_inventory_merged]
-  mergedKafka[Kafka: purchase_inventory_merged]
-  s3[S3/MinIO/LocalStack]
-  prometheus[Prometheus]
-  kafka_ui[Kafka UI]
-  dbeaver[DBeaver]
 ```
 
 This diagram is fully compatible with GitHub's Mermaid renderer and accurately shows the dual-sink streaming architecture.
