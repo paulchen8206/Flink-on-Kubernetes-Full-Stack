@@ -14,8 +14,8 @@ public class KafkaToPostgresDb {
         env.enableCheckpointing(10000);
 
         Properties kafkaProps = new Properties();
-        kafkaProps.setProperty("bootstrap.servers", "172.18.0.4:9092");
-        kafkaProps.setProperty("group.id", "flink-consumer");
+        kafkaProps.setProperty("bootstrap.servers", "kafka:9092");
+        kafkaProps.setProperty("group.id", "flink-consumer-" + System.currentTimeMillis());
 
         DataStream<String> events = env.addSource(
             new FlinkKafkaConsumer<>(

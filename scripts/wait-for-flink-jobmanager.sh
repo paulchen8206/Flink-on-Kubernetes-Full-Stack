@@ -5,8 +5,8 @@
 
 set -e
 
-# Host (default: jobmanager), port (default: 8081), and timeout in seconds (default: 120)
-HOST="${1:-jobmanager}"
+ # Host (default: localhost), port (default: 8081), and timeout in seconds (default: 120)
+HOST="${1:-localhost}"
 PORT="${2:-8081}"
 TIMEOUT="${3:-120}"
 

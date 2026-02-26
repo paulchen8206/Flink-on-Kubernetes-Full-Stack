@@ -43,6 +43,7 @@ services:
       - KAFKA_LISTENERS=PLAINTEXT://:9092
       - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
       - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
     depends_on:
       - zookeeper
   zookeeper:
@@ -60,10 +61,11 @@ services:
       - "8081:8081"
     environment:
       - JOB_MANAGER_RPC_ADDRESS=jobmanager
-    entrypoint: /docker-entrypoint.sh jobmanager
+    entrypoint: /bin/sh -c "chown flink:flink /opt/flink/conf/flink-application-custom.yaml && FLINK_CONF_DIR=/opt/flink/conf FLINK_CONF_FILE=/opt/flink/conf/flink-application-custom.yaml exec /docker-entrypoint.sh jobmanager"
     volumes:
       - ./purchase-report-1.0-SNAPSHOT.jar:/opt/flink/job.jar
-      - ../config/flink-conf/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
+      - ./config/flink-conf/flink-application.conf:/opt/flink/conf/flink-application-custom.yaml
+      - ../flink-data:/flink-data
   taskmanager:
     image: purchase-report-job:latest
     container_name: flink-taskmanager
@@ -71,9 +73,10 @@ services:
       - jobmanager
     environment:
       - JOB_MANAGER_RPC_ADDRESS=jobmanager
-    entrypoint: /docker-entrypoint.sh taskmanager
+    entrypoint: /bin/sh -c "chown flink:flink /opt/flink/conf/flink-application-custom.yaml && FLINK_CONF_DIR=/opt/flink/conf FLINK_CONF_FILE=/opt/flink/conf/flink-application-custom.yaml exec /docker-entrypoint.sh taskmanager"
     volumes:
-      - ../config/flink-conf/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
+      - ./config/flink-conf/flink-application.conf:/opt/flink/conf/flink-application-custom.yaml
+      - ../flink-data:/flink-data
 
   # S3 emulation
   localstack:

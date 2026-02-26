@@ -1,3 +1,7 @@
+flink-run:
+	docker compose -f docker/docker-compose.yml exec jobmanager flink run --jobmanager localhost:8081 -c com.example.flink.KafkaToPostgresDb /opt/flink/job.jar
+ps:
+	docker compose -f docker/docker-compose.yml ps
 exec-jobmanager:
 	docker compose -f docker/docker-compose.yml exec jobmanager ls -l /opt/flink/conf/
 # Makefile.docker for building JAR, copying it, building Docker images, and running docker compose
@@ -43,7 +47,7 @@ wait-jobmanager:
 # Always submit the job from inside the Docker network
 # Usage: make -f Makefile.docker submit-job
 submit-job: wait-jobmanager
-	docker-compose -f docker/docker-compose.yml exec jobmanager flink run --jobmanager jobmanager:8081 -c com.example.flink.KafkaToPostgresDb /opt/flink/job.jar
+	docker compose -f docker/docker-compose.yml exec jobmanager flink run --jobmanager localhost:8081 -c com.example.flink.KafkaToPostgresDb /opt/flink/job.jar
 
 # Remove all stopped containers, unused networks, dangling images, and unused volumes
 prune:
