@@ -60,9 +60,10 @@ services:
       - "8081:8081"
     environment:
       - JOB_MANAGER_RPC_ADDRESS=jobmanager
-    command: jobmanager
+    entrypoint: /docker-entrypoint.sh jobmanager
     volumes:
       - ./purchase-report-1.0-SNAPSHOT.jar:/opt/flink/job.jar
+      - ../config/flink-conf/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
   taskmanager:
     image: purchase-report-job:latest
     container_name: flink-taskmanager
@@ -70,30 +71,19 @@ services:
       - jobmanager
     environment:
       - JOB_MANAGER_RPC_ADDRESS=jobmanager
-    command: taskmanager
-  purchase-report-job:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: purchase-report-job:latest
-    container_name: purchase-report-job
-    depends_on:
-      - jobmanager
-      - taskmanager
-      - kafka
-      - postgres
-    environment:
-      - FLINK_PROPERTIES=jobmanager.rpc.address=jobmanager
-    # The JAR must exist at build time: ./purchase-report-1.0-SNAPSHOT.jar
+    entrypoint: /docker-entrypoint.sh taskmanager
+    volumes:
+      - ../config/flink-conf/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
 
   # S3 emulation
   localstack:
-    image: localstack/localstack:3.4
     container_name: localstack
+    image: localstack/localstack
     ports:
-      - "4566:4566" # Edge port for all services
-      - "4571:4571"
+      - "0.0.0.0:4566:4566"
+      - "0.0.0.0:4510-4559:4510-4559"
     environment:
+      - DEBUG=${DEBUG:-0}
       - SERVICES=s3
       - DEFAULT_REGION=us-east-1
       - DATA_DIR=/tmp/localstack/data

@@ -1,9 +1,11 @@
+exec-jobmanager:
+	docker compose -f docker/docker-compose.yml exec jobmanager ls -l /opt/flink/conf/
 # Makefile.docker for building JAR, copying it, building Docker images, and running docker compose
 
 JAR=flink-jobs/purchase-report/target/purchase-report-1.0-SNAPSHOT.jar
 JAR_DEST=docker/purchase-report-1.0-SNAPSHOT.jar
 
-.PHONY: all jar copy-jar build-salesgen build-purchase-report-job build up down logs clean wait-jobmanager submit-job check-purchases exec-pg-create-purchases
+.PHONY: all jar copy-jar build-salesgen build-jobmanager build up down logs clean wait-jobmanager submit-job check-purchases exec-pg-create-purchases
 
 all: build up
 
@@ -16,23 +18,24 @@ copy-jar: jar
 build-salesgen:
 	cd salesgen && docker build -t salesgen:latest .
 
-build-purchase-report-job: copy-jar
-	cd docker && docker compose build purchase-report-job
 
-build: build-salesgen build-purchase-report-job
+build-jobmanager: copy-jar
+	docker compose -f docker/docker-compose.yml build jobmanager
+
+build: build-salesgen build-jobmanager
 
 down:
-	cd docker && docker compose down
+	docker compose -f docker/docker-compose.yml down
 
 up:
-	cd docker && docker compose up -d
+	docker compose -f docker/docker-compose.yml up -d
 
 logs:
-	cd docker && docker compose logs -f
+	docker compose -f docker/docker-compose.yml logs -f
 
 clean:
 	rm -f $(JAR_DEST)
-	cd docker && docker compose down -v
+	docker compose -f docker/docker-compose.yml down -v
 
 wait-jobmanager:
 	./scripts/wait-for-flink-jobmanager.sh jobmanager 8081 120
