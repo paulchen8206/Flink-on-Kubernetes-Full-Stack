@@ -1,0 +1,16 @@
+# Flink job configuration for joining purchases and inventories and sinking to Postgres
+kafka:
+  bootstrapServers: "kafka:9092"
+  purchasesTopic: "store.purchases"
+  inventoriesTopic: "store.inventories"
+  groupIdPrefix: "flink-job"
+postgres:
+  host: "postgres"
+  port: 5432
+  database: "purchase_db"
+  user: "postgres"
+  password: "postgres"
+  mergedTable: "purchase_inventory_merged"
+flink:
+  checkpointIntervalMs: 10000
+  parallelism: 1

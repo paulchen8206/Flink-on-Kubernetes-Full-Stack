@@ -1,5 +1,4 @@
 package com.example.flink;
-
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 // import org.apache.flink.api.java.tuple.Tuple2; // (unused)
@@ -17,19 +16,45 @@ import java.util.Properties;
 
 public class KafkaToPostgresDb {
     public static void main(String[] args) throws Exception {
+        // Load YAML config for Kafka, Postgres, and Flink job parameters
+        com.fasterxml.jackson.databind.ObjectMapper yamlMapper = new com.fasterxml.jackson.databind.ObjectMapper(new com.fasterxml.jackson.dataformat.yaml.YAMLFactory());
+        java.util.Map<String, Object> config;
+        try (java.io.InputStream is = KafkaToPostgresDb.class.getClassLoader().getResourceAsStream("flink-job-config.yaml")) {
+            if (is == null)
+                throw new RuntimeException("flink-job-config.yaml not found in resources");
+            config = yamlMapper.readValue(is, java.util.Map.class);
+        }
+
+        java.util.Map<String, Object> kafkaConfig = (java.util.Map<String, Object>) config.get("kafka");
+        java.util.Map<String, Object> postgresConfig = (java.util.Map<String, Object>) config.get("postgres");
+        java.util.Map<String, Object> flinkConfig = (java.util.Map<String, Object>) config.get("flink");
+
+        String kafkaBootstrap = (String) kafkaConfig.get("bootstrapServers");
+        String purchasesTopic = (String) kafkaConfig.get("purchasesTopic");
+        String inventoriesTopic = (String) kafkaConfig.get("inventoriesTopic");
+        String groupIdPrefix = (String) kafkaConfig.get("groupIdPrefix");
+        String pgHost = (String) postgresConfig.get("host");
+        int pgPort = (Integer) (postgresConfig.get("port") instanceof Integer ? postgresConfig.get("port") : ((Number)postgresConfig.get("port")).intValue());
+        String pgDb = (String) postgresConfig.get("database");
+        String pgUser = (String) postgresConfig.get("user");
+        String pgPassword = (String) postgresConfig.get("password");
+        String mergedTable = (String) postgresConfig.get("mergedTable");
+        int checkpointInterval = (Integer) (flinkConfig.get("checkpointIntervalMs") instanceof Integer ? flinkConfig.get("checkpointIntervalMs") : ((Number)flinkConfig.get("checkpointIntervalMs")).intValue());
+        int parallelism = (Integer) (flinkConfig.get("parallelism") instanceof Integer ? flinkConfig.get("parallelism") : ((Number)flinkConfig.get("parallelism")).intValue());
+
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.enableCheckpointing(10000);
+        env.setParallelism(parallelism);
+        env.enableCheckpointing(checkpointInterval);
 
         Properties kafkaProps = new Properties();
-        kafkaProps.setProperty("bootstrap.servers", "kafka:9092");
-        kafkaProps.setProperty("group.id", "flink-consumer-" + System.currentTimeMillis());
-
+        kafkaProps.setProperty("bootstrap.servers", kafkaBootstrap);
+        kafkaProps.setProperty("group.id", groupIdPrefix + "-" + System.currentTimeMillis());
 
         // Read purchases using new KafkaSource API
         KafkaSource<String> purchasesSource = KafkaSource.<String>builder()
-            .setBootstrapServers("kafka:9092")
-            .setTopics("store.purchases")
-            .setGroupId("flink-consumer-purchases-" + System.currentTimeMillis())
+            .setBootstrapServers(kafkaBootstrap)
+            .setTopics(purchasesTopic)
+            .setGroupId(groupIdPrefix + "-purchases-" + System.currentTimeMillis())
             .setStartingOffsets(OffsetsInitializer.earliest())
             .setValueOnlyDeserializer(new SimpleStringSchema())
             .build();
@@ -41,9 +66,9 @@ public class KafkaToPostgresDb {
 
         // Read inventories using new KafkaSource API
         KafkaSource<String> inventoriesSource = KafkaSource.<String>builder()
-            .setBootstrapServers("kafka:9092")
-            .setTopics("store.inventories")
-            .setGroupId("flink-consumer-inventories-" + System.currentTimeMillis())
+            .setBootstrapServers(kafkaBootstrap)
+            .setTopics(inventoriesTopic)
+            .setGroupId(groupIdPrefix + "-inventories-" + System.currentTimeMillis())
             .setStartingOffsets(OffsetsInitializer.earliest())
             .setValueOnlyDeserializer(new SimpleStringSchema())
             .build();
@@ -69,9 +94,11 @@ public class KafkaToPostgresDb {
             .returns(String.class);
 
         // Sink merged JSON to purchase_inventory_merged with column mapping
+        String insertSql = "INSERT INTO " + mergedTable + " (transaction_time, transaction_id, product_id, price, quantity, state, is_member, member_discount, add_supplements, supplement_price, total_purchase, event_time, existing_level, stock_quantity, new_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String jdbcUrl = "jdbc:postgresql://" + pgHost + ":" + pgPort + "/" + pgDb;
         joined.addSink(
             JdbcSink.sink(
-                "INSERT INTO purchase_inventory_merged (transaction_time, transaction_id, product_id, price, quantity, state, is_member, member_discount, add_supplements, supplement_price, total_purchase, event_time, existing_level, stock_quantity, new_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                insertSql,
                 (ps, event) -> {
                     try {
                         com.fasterxml.jackson.databind.JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(event);
@@ -103,10 +130,10 @@ public class KafkaToPostgresDb {
                     }
                 },
                 new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
-                    .withUrl("jdbc:postgresql://postgres:5432/purchase_db")
+                    .withUrl(jdbcUrl)
                     .withDriverName("org.postgresql.Driver")
-                    .withUsername("postgres")
-                    .withPassword("postgres")
+                    .withUsername(pgUser)
+                    .withPassword(pgPassword)
                     .build()
             )
         );
