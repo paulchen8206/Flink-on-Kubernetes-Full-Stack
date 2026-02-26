@@ -12,11 +12,12 @@ TIMEOUT="${3:-120}"
 
 # Poll the JobManager REST API until it responds or timeout is reached
 for i in $(seq 1 "$TIMEOUT"); do
-  if curl -sf "http://$HOST:$PORT/overview" >/dev/null; then
+  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 "http://$HOST:$PORT/overview" || echo "000")
+  if [ "$HTTP_CODE" = "200" ]; then
     echo "Flink JobManager REST API is up at $HOST:$PORT/overview"
     exit 0
   fi
-  echo "Waiting for Flink JobManager REST API at $HOST:$PORT/overview... ($i/$TIMEOUT)"
+  echo "Waiting for Flink JobManager REST API at $HOST:$PORT/overview... ($i/$TIMEOUT) [HTTP $HTTP_CODE]"
   sleep 1
 done
 
