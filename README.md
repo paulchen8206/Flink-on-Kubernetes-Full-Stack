@@ -75,12 +75,38 @@ Apache Flink on Kubernetes with the Flink Operator provides a scalable, resilien
 
 ---
 
-## 3. Job Development & Packaging
+
+## 3. Job Development, Packaging & Local Stack
 
 - Sample job: [purchase-report](flink-jobs/purchase-report/)
 - Build with Maven: see [pom.xml](flink-jobs/purchase-report/pom.xml)
-- Package and build Docker images: see [Dockerfile](docker/purchase-report/Dockerfile)
+- Package and build Docker images: see [Dockerfile](docker/Dockerfile)
 - Update deployment YAMLs to use your custom image and entry class.
+
+### Local Development with Docker Compose
+
+To build and run the full local stack (Flink, Kafka, Postgres, MinIO, LocalStack, salesgen, etc.) using the provided Makefile.docker:
+
+```sh
+# From the project root:
+make -f Makefile.docker all
+```
+
+This will:
+1. Build the Flink job JAR (Maven)
+2. Copy the JAR into the docker context
+3. Build all required Docker images (including salesgen and purchase-report-job)
+4. Start all services with Docker Compose
+
+Other useful targets:
+
+- `make -f Makefile.docker build` – Build all images only
+- `make -f Makefile.docker up` – Start the stack (if already built)
+- `make -f Makefile.docker down` – Stop and remove all containers
+- `make -f Makefile.docker logs` – View logs for all services
+- `make -f Makefile.docker clean` – Remove the copied JAR and stop/remove containers/volumes
+
+**Note:** Ensure Docker is running and ports 8081, 8082, 9000, 9001, 4566, 5432, 9092, 2181 are available.
 
 ---
 
