@@ -58,19 +58,24 @@ This diagram shows how the Flink job writes merged data to both Postgres and Kaf
 
 ---
 
+
 ## Repository Structure
 
 | Path | Description |
 |------|-------------|
 | `flink-jobs/purchase-report/` | Main Flink job (Java, Maven) |
-| `docker/` | Docker Compose, Dockerfiles |
-| `salesgen/` | Synthetic event generator (Python) |
-| `pgsql/` | Postgres init scripts |
+| `docker/` | Docker Compose files, Dockerfiles, and related configs |
+| `salesgen/` | Synthetic event generator (Python), config, and models |
+| `pgsql/` | Postgres init scripts and configs |
 | `helm/flink/` | Helm chart for Flink deployment |
-| `k8s/` | K8s manifests: CRDs, RBAC, PVC, monitoring |
-| `ci-cd/` | CI/CD pipeline (GitHub Actions) |
+| `k8s/` | Kubernetes manifests: deployments, RBAC, PVC, monitoring, namespaces, secrets, storage |
 | `scripts/` | Automation scripts (build, deploy, scale, upgrade, etc.) |
-| `docs/` | Architecture, deployment, ops docs |
+| `config/` | Flink and logging configuration |
+| `flink-data/` | (Optional) Data or state files for Flink jobs |
+| `docs/` | Architecture, deployment, and operations documentation |
+| `Makefile`, `Makefile.docker` | Automation for build, deploy, and local dev |
+
+---
 
 ---
 
