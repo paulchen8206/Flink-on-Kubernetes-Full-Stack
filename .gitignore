@@ -1,6 +1,11 @@
 # Compiled class files
 *.class
 
+# Java archives
+*.jar
+*.war
+*.ear
+
 # Log files
 *.log
 
@@ -15,14 +20,25 @@ build/
 # VS Code settings
 .vscode/
 
-# Mac system files
+# OS-generated files
 .DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.Spotlight-V100/
+.Trashes/
+._*
 
 # Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
@@ -44,18 +60,22 @@ k8s/secrets/
 # Data files
 salesgen/data/
 
-# Ignore jar files
-*.jar
-
 # Ignore virtual environments
 venv/
 .env/
+.venv/
 
 # Ignore local configuration overrides
 config/local/
 
 # Ignore output from scripts
 scripts/*.out
+
+# Runtime and temp files
+*.tmp
+*.temp
+tmp/
+logs/
 
 # Ignore backup files
 *~
