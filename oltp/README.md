@@ -1,9 +1,9 @@
-# salesgen: Synthetic Event Generator
+# oltp: Synthetic Event Generator
 
 This module generates synthetic purchase events for Kafka, used to test the Flink streaming pipeline.
 
 ## Usage
-- salesgen is started automatically in the local Docker Compose stack.
+- oltp is started automatically in the local Docker Compose stack.
 - To run manually:
   ```sh
   python purchases.py

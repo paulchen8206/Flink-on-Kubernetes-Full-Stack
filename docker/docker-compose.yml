@@ -1,17 +1,17 @@
 services:
-  salesgen:
+  oltp:
     build:
-      context: ../salesgen
+      context: ../oltp
       dockerfile: Dockerfile
-    image: salesgen:latest
-    container_name: salesgen
+    image: oltp:latest
+    container_name: oltp
     depends_on:
       - kafka
     environment:
       - KAFKA_BROKER=kafka:9092
-      - SALESGEN_TOPIC=sales-events
-      - SALESGEN_RATE=10
-    # SALESGEN_RATE: events per second
+      - OLTP_TOPIC=sales-events
+      - OLTP_RATE=10
+    # OLTP_RATE: events per second
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui

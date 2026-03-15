@@ -1,4 +1,4 @@
-# Dockerfile for salesgen Python application
+# Dockerfile for oltp Python application
 FROM python:3.10-slim
 
 WORKDIR /app

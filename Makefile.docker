@@ -11,7 +11,7 @@
 JAR=flink-jobs/purchase-report/target/purchase-report-1.0-SNAPSHOT.jar
 JAR_DEST=docker/purchase-report-1.0-SNAPSHOT.jar
 
-.PHONY: all jar copy-jar build-salesgen build-jobmanager build up down logs clean wait-jobmanager submit-job check-purchases exec-pg-create-purchases flink-create-topic rerun-init-sql
+.PHONY: all jar copy-jar build-oltp build-jobmanager build up down logs clean wait-jobmanager submit-job check-purchases exec-pg-create-purchases flink-create-topic rerun-init-sql
 
 all: build up flink-create-topic init-db submit-job
 
@@ -22,13 +22,13 @@ jar:
 copy-jar: jar
 	cp $(JAR) $(JAR_DEST)
 
-build-salesgen:
-	cd salesgen && docker build -t salesgen:latest .
+build-oltp:
+	cd oltp && docker build -t oltp:latest .
 
 build-jobmanager: copy-jar
 	docker compose -f docker/docker-compose.yml build jobmanager
 
-build: build-salesgen build-jobmanager
+build: build-oltp build-jobmanager
 
 # Container orchestration
 up:

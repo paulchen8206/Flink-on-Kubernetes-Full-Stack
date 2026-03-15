@@ -58,7 +58,7 @@ helm/flink/tmpcharts/
 k8s/secrets/
 
 # Data files
-salesgen/data/
+oltp/data/
 
 # Ignore virtual environments
 venv/

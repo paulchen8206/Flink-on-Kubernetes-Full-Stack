@@ -1,4 +1,4 @@
-# Flink on Kubernetes: End-to-End Streaming Stack
+# Flink on Kubernetes: End-to-End Streaming Pipeline
 
 Deploy and manage Apache Flink jobs on Kubernetes with a modern, production-ready stack.
 
@@ -22,7 +22,12 @@ Deploy and manage Apache Flink jobs on Kubernetes with a modern, production-read
 - [Monitoring & Observability](#monitoring--observability)
 - [CI/CD Pipeline](#cicd-pipeline)
 - [Best Practices](#best-practices)
+- [Postgres Data Analysis with DBeaver](#postgres-data-analysis-with-dbeaver)
+- [Database & Table Initialization](#database--table-initialization)
+- [Automation & Makefile Usage](#automation--makefile-usage)
+- [Troubleshooting](#troubleshooting)
 - [References](#references)
+- [License](#license)
 
 ---
 
@@ -33,15 +38,15 @@ This project demonstrates a full streaming data pipeline:
 - **Kafka**: Event broker for streaming data
 - **Postgres**: Sink for processed events
 - **Kafka (purchase_inventory_merged)**: Sink for merged/processed events
-- **salesgen**: Synthetic event generator for Kafka
+- **oltp**: Synthetic event generator for Kafka
 - **LocalStack/MinIO**: S3-compatible storage for state backend (optional)
 - **Helm/K8s**: Production deployment
 - **Docker Compose**: Local dev stack
 
 ```mermaid
 graph TD;
-  salesgen --> kafka_purchases["Kafka: store.purchases"];
-  salesgen --> kafka_inventories["Kafka: store.inventories"];
+  oltp --> kafka_purchases["Kafka: store.purchases"];
+  oltp --> kafka_inventories["Kafka: store.inventories"];
   kafka_purchases --> flink["Flink Job"];
   kafka_inventories --> flink;
   flink --> postgres["Postgres: purchases, purchase_inventory_merged"];
@@ -65,20 +70,16 @@ This diagram shows how the Flink job writes merged data to both Postgres and Kaf
 |------|-------------|
 | `flink-jobs/purchase-report/` | Main Flink job (Java, Maven) |
 | `docker/` | Docker Compose files, Dockerfiles, and related configs |
-| `salesgen/` | Synthetic event generator (Python), config, and models |
+| `oltp/` | Synthetic event generator (Python), config, and models |
 | `pgsql/` | Postgres init scripts and configs |
 | `helm/flink/` | Helm chart for Flink deployment |
 | `k8s/` | Kubernetes manifests: deployments, RBAC, PVC, monitoring, namespaces, secrets, storage |
 | `scripts/` | Automation scripts (build, deploy, scale, upgrade, etc.) |
 | `config/` | Flink and logging configuration |
-| `flink-data/` | (Optional) Data or state files for Flink jobs |
 | `docs/` | Architecture, deployment, and operations documentation |
 | `Makefile`, `Makefile.docker` | Automation for build, deploy, and local dev |
 
 ---
-
----
-
 
 ## Quick Start
 
@@ -86,7 +87,7 @@ This diagram shows how the Flink job writes merged data to both Postgres and Kaf
 - Docker & Docker Compose
 - Java 11+
 - Maven
-- Python 3 (for salesgen)
+- Python 3 (for oltp)
 - kind (for local K8s)
 - kubectl, helm
 
@@ -110,26 +111,28 @@ Access:
 
 ## Development & Packaging
 
-- Edit Flink job: `flink-jobs/purchase-report/src/main/java/com/example/flink/KafkaToPostgresDb.java`
-- Build JAR: `make build-jar` or `mvn clean package`
-- Build Docker image: `make build-docker` or `docker build ...`
-- Run stack: `make -f Makefile.docker up`
-- Generate events: salesgen auto-starts, or run manually
+### Flink Job
+- Java 11+, Flink 1.20, Kafka connector, JDBC connector (see `pom.xml` for dependencies)
+- Edit job logic: `flink-jobs/purchase-report/src/main/java/com/example/flink/KafkaToPostgresDb.java`
 
----
+### Build & Run
 
-
-**Flink Job:**
-- Java 11+, Flink 1.20, Kafka connector, JDBC connector
-- See `pom.xml` for dependencies
-
-**Build steps:**
 ```sh
+# Build JAR
 cd flink-jobs/purchase-report
 mvn clean package
 cd ../..
+
+# Build Docker image
 docker build -f docker/Dockerfile -t purchase-report-job:latest .
+
+# Run the full local stack
+make -f Makefile.docker up
 ```
+
+Alternatively, use the Makefile shortcuts: `make build-jar`, `make build-docker`.
+
+`oltp` auto-starts in Docker Compose, or run manually: `python oltp/purchases.py`
 
 ---
 
@@ -184,10 +187,10 @@ kubectl port-forward svc/purchase-report-app-rest -n flink 8081:8081
 
 ## CI/CD Pipeline
 
-- GitHub Actions: `ci-cd/pipeline.yaml`
-  - Build JAR with Maven
-  - Build & push Docker image
-  - Deploy to K8s with Helm
+A GitHub Actions workflow can be configured to automate the full pipeline:
+- Build the JAR with Maven
+- Build and push the Docker image
+- Deploy to Kubernetes with Helm
 
 ---
 
@@ -203,15 +206,14 @@ kubectl port-forward svc/purchase-report-app-rest -n flink 8081:8081
 
 ---
 
-
----
-
 ## References
 
-- [Flink Documentation](https://nightlies.apache.org/flink/)
+- [Apache Flink Documentation](https://nightlies.apache.org/flink/)
 - [Flink Kubernetes Operator](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/)
-- [Helm](https://helm.sh/docs/)
-- [Kubernetes](https://kubernetes.io/docs/)
+- [Helm Documentation](https://helm.sh/docs/)
+- [Apache Kafka Documentation](https://kafka.apache.org/documentation/)
+- [kind (Kubernetes in Docker)](https://kind.sigs.k8s.io/)
+- [Kubernetes Documentation](https://kubernetes.io/docs/)
 
 ---
 
@@ -241,110 +243,11 @@ DBeaver provides a graphical interface for:
 
 ---
 
-## Dual-Sink Streaming Architecture (GitHub Compatible)
-
-```mermaid
-graph TD;
-  salesgen["Salesgen (Python)"] --> kafka_purchases["Kafka: store.purchases"];
-  salesgen --> kafka_inventories["Kafka: store.inventories"];
-  kafka_purchases --> flink["Flink Job"];
-  kafka_inventories --> flink;
-  flink --> postgres["Postgres: purchases, purchase_inventory_merged"];
-  flink --> mergedKafka["Kafka: purchase_inventory_merged"];
-  flink -- "checkpoints/savepoints" --> s3["S3/MinIO/LocalStack"];
-  flink --> prometheus["Prometheus"];
-  kafka_ui["Kafka UI"] -.-> kafka_purchases;
-  kafka_ui -.-> kafka_inventories;
-  dbeaver["DBeaver"] -.-> postgres;
-  dbeaver -.-> mergedKafka;
-```
-
-This diagram is fully compatible with GitHub's Mermaid renderer and accurately shows the dual-sink streaming architecture.
-
----
-
-## Detailed Data Flow: Dual-Sink Streaming Pipeline
-
-<div align="center">
-
-```mermaid
-graph LR;
-  subgraph Ingestion
-    salesgen["<b>🛒 Salesgen<br/>(Python)</b>"]
-    salesgen -- "purchase events" --> kafkaIn["<b>🟦 Kafka<br/>store.purchases</b>"]
-    salesgen -- "inventory events" --> kafkaInv["<b>🟦 Kafka<br/>store.inventories</b>"]
-  end
-
-  subgraph Processing
-    flink["<b>⚡ Flink Job<br/>KafkaToPostgresDb.java</b>"]
-  end
-
-  subgraph Sinks
-    postgres["<b>🗄️ Postgres<br/>purchases<br/>purchase_inventory_merged</b>"]
-    mergedKafka["<b>🟦 Kafka<br/>purchase_inventory_merged</b>"]
-  end
-
-  subgraph Monitoring
-    prometheus["<b>📊 Prometheus</b>"]
-    kafkaUI["<b>🔎 Kafka UI</b>"]
-    dbeaver["<b>🖥️ DBeaver</b>"]
-  end
-
-  subgraph State
-    s3["<b>☁️ S3/MinIO/LocalStack</b>"]
-  end
-
-  kafkaIn --> flink
-  kafkaInv --> flink
-  flink -- "merged JSON" --> postgres
-  flink -- "merged JSON" --> mergedKafka
-  flink -- "checkpoints/savepoints" --> s3
-  flink --> prometheus
-  kafkaUI -.-> kafkaIn
-  kafkaUI -.-> kafkaInv
-  dbeaver -.-> postgres
-  dbeaver -.-> mergedKafka
-
-```
-
-</div>
-
-**Legend:**
-- <b>🟦 Blue nodes</b>: Kafka topics (source/sink)
-- <b>🗄️ Gray nodes</b>: Postgres sinks
-- <b>⚡ Flink Job</b>: Stream processing
-- <b>🛒 Salesgen</b>: Event generator
-- <b>☁️ S3/MinIO/LocalStack</b>: State backend
-- <b>📊 Prometheus</b>: Metrics/monitoring
-- <b>🔎 Kafka UI</b>: Kafka topic browser
-- <b>🖥️ DBeaver</b>: Data analysis
-- <b>Dashed arrows</b>: Monitoring/analytics access
-- <b>Solid arrows</b>: Main data flow
-
----
-
-## Component Interaction Overview
-
-```mermaid
-graph TD;
-  A["🛒 Salesgen"] -->|"store.purchases"| B["🟦 Kafka"]
-  A -->|"store.inventories"| B
-  B -->|"purchase events"| C["⚡ Flink Job"]
-  B -->|"inventory events"| C
-  C -->|"merged JSON"| D["🗄️ Postgres"]
-  C -->|"merged JSON"| E["🟦 Kafka<br/>purchase_inventory_merged"]
-  C -- "metrics" --> F["📊 Prometheus"]
-  C -- "checkpoints" --> G["☁️ S3/MinIO"]
-  H["🖥️ DBeaver"] -.-> D
-  H -.-> E
-  I["🔎 Kafka UI"] -.-> B
-```
-
----
-
 ## Database & Table Initialization
 
 Postgres tables and users are initialized automatically when the container starts, using the unified DDL script at `pgsql/init.sql`. No manual table creation is required.
+
+---
 
 ## Automation & Makefile Usage
 
@@ -358,7 +261,9 @@ make -f Makefile.docker all
 Other useful targets:
 - `make -f Makefile.docker logs` — View logs
 - `make -f Makefile.docker check-purchases` — Check sample records in purchases table
-- `make -f Makefile.docker create-joined-table` — (No-op, handled by init.sql)
+- `make -f Makefile.docker create-joined-table` — Create joined table (no-op if init.sql ran)
+
+---
 
 ## Troubleshooting
 
@@ -366,5 +271,5 @@ Other useful targets:
 - Ensure Postgres is healthy and tables exist (see `pgsql/init.sql`).
 - For database errors, restart the stack to re-initialize tables.
 - For dependency issues, rebuild with `make -f Makefile.docker build`.
----
+
 ---

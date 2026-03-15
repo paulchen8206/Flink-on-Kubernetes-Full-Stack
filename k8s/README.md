@@ -4,9 +4,12 @@ This directory contains Kubernetes manifests for deploying and managing Apache F
 
 ## Structure
 - `flink-deployments/`: FlinkApplication and FlinkDeployment CRDs for running Flink jobs via the Flink Kubernetes Operator.
+- `rbac/`: Role, RoleBinding, and ServiceAccount manifests for Flink cluster permissions.
+- `namespaces/`: Namespace definition for isolating Flink workloads.
+- `storage/`: PersistentVolumeClaim manifests for Flink state storage.
 - `secrets/`: Kubernetes Secret manifests (e.g., S3 credentials, sensitive configs).
 - `monitoring/`: Monitoring resources such as ServiceMonitor for Prometheus integration.
-- `flink-resources.yaml`: Namespace, RBAC, PersistentVolumeClaim, and other shared resources for Flink clusters.
+- `flink-resources.yaml`: Consolidated resource manifest (namespace, RBAC, PVC, and other shared resources).
 
 ## Usage
 - Edit and apply the manifests as needed for your environment.
@@ -14,9 +17,8 @@ This directory contains Kubernetes manifests for deploying and managing Apache F
 - See the main project README and docs/deployment-guide.md for deployment instructions.
 
 ## Deploying a Flink Application
-See the deployment manifest in [flink-deployments/flink-application.yaml](flink-deployments/flink-application.yaml) and supporting resources in [flink-resources.yaml](flink-resources.yaml).
 
-To deploy and monitor, use the provided manifests and scripts. See this directory for YAML files and ../scripts/ for automation.
+See the deployment manifest in [flink-deployments/flink-application.yaml](flink-deployments/flink-application.yaml) and supporting resources in [flink-resources.yaml](flink-resources.yaml).
 
 ## Monitoring
 - Access the Flink Web UI by port-forwarding the JobManager service.

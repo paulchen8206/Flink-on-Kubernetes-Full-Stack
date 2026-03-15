@@ -28,16 +28,3 @@ This module contains the Flink application for consuming Kafka events and sinkin
 ## References
 - [Flink Documentation](https://nightlies.apache.org/flink/)
 - [Project Root README](../../README.md)
-
-## Custom Flink Job Example
-See the sample job implementation in [src/main/java/com/example/flink/purchaseReport.java](src/main/java/com/example/flink/purchaseReport.java).
-
-Build with Maven using the provided [pom.xml](pom.xml).
-
-Build and package using Maven as described in the pom.xml.
-
-See the Docker build instructions in the Dockerfile in this directory.
-
-Build and push the Docker image using the Dockerfile.
-
-Update your deployment YAML to use the built image as needed.
