@@ -201,6 +201,42 @@ public class KafkaToPostgresDb {
             )
         );
 
+        // Mirror report metrics into purchase_db for local unified monitoring view.
+        joined.addSink(
+            JdbcSink.sink(
+                reportInsertSql,
+                (ps, event) -> {
+                    try {
+                        com.fasterxml.jackson.databind.JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(event);
+                        java.sql.Timestamp purchaseTime = java.sql.Timestamp.valueOf(node.path("transaction_time").asText());
+                        double price = node.path("price").asDouble();
+                        int quantity = node.path("quantity").asInt();
+                        double totalPurchase = node.path("total_purchase").asDouble();
+
+                        ps.setString(1, node.path("product_id").asText());
+                        ps.setString(2, "unknown");
+                        ps.setString(3, node.path("state").asText());
+                        ps.setTimestamp(4, purchaseTime);
+                        ps.setFloat(5, 1.0f);
+                        ps.setFloat(6, (float) quantity);
+                        ps.setFloat(7, (float) (price * quantity));
+                        ps.setFloat(8, (float) node.path("member_discount").asDouble());
+                        ps.setFloat(9, (float) node.path("supplement_price").asDouble());
+                        ps.setFloat(10, (float) totalPurchase);
+                        ps.setFloat(11, (float) totalPurchase);
+                    } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                        throw new RuntimeException(e);
+                    }
+                },
+                new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
+                    .withUrl(jdbcUrl)
+                    .withDriverName("org.postgresql.Driver")
+                    .withUsername(pgUser)
+                    .withPassword(pgPassword)
+                    .build()
+            )
+        );
+
         // Sink merged JSON to Kafka topic purchase_inventory_merged
         org.apache.flink.connector.kafka.sink.KafkaSink<String> mergedKafkaSink = org.apache.flink.connector.kafka.sink.KafkaSink.<String>builder()
             .setBootstrapServers(kafkaBootstrap)

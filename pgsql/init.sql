@@ -42,6 +42,49 @@ CREATE TABLE IF NOT EXISTS purchase_inventory_merged (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Purchase report table mirror in purchase_db (used by unified monitoring view)
+CREATE TABLE IF NOT EXISTS purchase_report (
+    dim_item VARCHAR(255),
+    dim_category VARCHAR(255),
+    dim_state VARCHAR(255),
+    purchase_time TIMESTAMP,
+    fact_count_transactions FLOAT,
+    fact_sum_quantity FLOAT,
+    fact_sum_price FLOAT,
+    fact_sum_member_discount FLOAT,
+    fact_sum_supplement_price FLOAT,
+    fact_sum_total_purchase FLOAT,
+    fact_avg_total_purchase FLOAT,
+    PRIMARY KEY(dim_item, dim_category, dim_state, purchase_time)
+);
+CREATE INDEX IF NOT EXISTS idx_timestamp_purchase_db ON purchase_report (dim_item, dim_category, dim_state, purchase_time);
+
+-- One-stop view for quick pipeline monitoring in purchase_db
+CREATE OR REPLACE VIEW pipeline_monitoring_view AS
+SELECT
+    'purchases'::text AS source_table,
+    created_at AS event_time,
+    id::text AS record_key,
+    NULL::double precision AS metric_value,
+    event_data AS details
+FROM purchases
+UNION ALL
+SELECT
+    'purchase_inventory_merged'::text AS source_table,
+    COALESCE(transaction_time, created_at) AS event_time,
+    (transaction_id || ':' || product_id) AS record_key,
+    total_purchase AS metric_value,
+    ('state=' || state || ', qty=' || quantity::text) AS details
+FROM purchase_inventory_merged
+UNION ALL
+SELECT
+    'purchase_report'::text AS source_table,
+    purchase_time AS event_time,
+    (dim_item || ':' || dim_state) AS record_key,
+    fact_sum_total_purchase::double precision AS metric_value,
+    ('category=' || dim_category || ', tx=' || fact_count_transactions::text) AS details
+FROM purchase_report;
+
 -- Purchase report table (in sales_report DB)
 \connect sales_report
 
