@@ -4,8 +4,8 @@ metadata:
   name: purchase-report-app
   namespace: flink
 spec:
-  image: flink:1.18.0
-  flinkVersion: v1_18
+  image: flink:2.0.0-java17
+  flinkVersion: v2_0
   flinkConfiguration:
     taskmanager.numberOfTaskSlots: "2"
     state.backend: rocksdb
@@ -27,10 +27,10 @@ spec:
   podTemplate:
     spec:
       containers:
-        - name: flink-main-container
-          volumeMounts:
-          - name: flink-data
-            mountPath: /flink-data
+      - name: flink-main-container
+        volumeMounts:
+        - name: flink-data
+          mountPath: /flink-data
       volumes:
       - name: flink-data
         persistentVolumeClaim:

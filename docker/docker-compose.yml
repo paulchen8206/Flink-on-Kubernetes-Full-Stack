@@ -23,7 +23,7 @@ services:
     depends_on:
       - kafka
   postgres:
-    image: postgres:15
+    image: postgres:17
     container_name: postgres
     ports:
       - "5432:5432"
@@ -34,7 +34,7 @@ services:
     volumes:
       - ./pgsql/:/docker-entrypoint-initdb.d/
   kafka:
-    image: confluentinc/cp-kafka:7.6.1
+    image: confluentinc/cp-kafka:7.7.1
     container_name: kafka
     ports:
       - "9092:9092"
@@ -47,7 +47,7 @@ services:
     depends_on:
       - zookeeper
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.6.1
+    image: confluentinc/cp-zookeeper:7.7.1
     container_name: zookeeper
     ports:
       - "2181:2181"
