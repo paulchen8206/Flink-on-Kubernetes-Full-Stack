@@ -112,7 +112,7 @@ Access:
 ## Development & Packaging
 
 ### Flink Job
-- Java 17+, Flink 2.0, Kafka connector, JDBC connector (see `pom.xml` for dependencies)
+- Java 17+, Flink 1.20.2, Kafka connector, JDBC connector (see `pom.xml` for dependencies)
 - Edit job logic: `flink-jobs/purchase-report/src/main/java/com/example/flink/KafkaToPostgresDb.java`
 
 ### Build & Run

@@ -1,8 +1,17 @@
 -- Unified DDL for Postgres initialization
 
 -- Users and databases
-CREATE USER root WITH PASSWORD 'admin1';
-CREATE DATABASE sales_report;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'root') THEN
+        CREATE ROLE root LOGIN PASSWORD 'admin1';
+    END IF;
+END
+$$;
+
+SELECT 'CREATE DATABASE sales_report'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'sales_report')\gexec
+
 GRANT ALL PRIVILEGES ON DATABASE sales_report TO root;
 
 -- Purchases table
@@ -34,9 +43,9 @@ CREATE TABLE IF NOT EXISTS purchase_inventory_merged (
 );
 
 -- Purchase report table (in sales_report DB)
--- Note: The following commands must be run after switching to sales_report
--- \c sales_report;
-CREATE TABLE purchase_report (
+\connect sales_report
+
+CREATE TABLE IF NOT EXISTS purchase_report (
     dim_item VARCHAR(255),
     dim_category VARCHAR(255),
     dim_state VARCHAR(255),
@@ -50,5 +59,5 @@ CREATE TABLE purchase_report (
     fact_avg_total_purchase FLOAT,
     PRIMARY KEY(dim_item, dim_category, dim_state, purchase_time)
 );
-CREATE INDEX idx_timestamp ON purchase_report (dim_item, dim_category, dim_state, purchase_time);
+CREATE INDEX IF NOT EXISTS idx_timestamp ON purchase_report (dim_item, dim_category, dim_state, purchase_time);
 ALTER TABLE purchase_report OWNER TO root;

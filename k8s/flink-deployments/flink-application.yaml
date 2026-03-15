@@ -4,8 +4,8 @@ metadata:
   name: purchase-report-app
   namespace: flink
 spec:
-  image: flink:2.0.0-java17
-  flinkVersion: v2_0
+  image: flink:1.20.2-java17
+  flinkVersion: v1_20
   flinkConfiguration:
     taskmanager.numberOfTaskSlots: "2"
     state.backend: rocksdb

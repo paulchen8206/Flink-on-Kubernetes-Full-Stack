@@ -2,7 +2,7 @@
 replicaCount: 1
 image:
   repository: flink
-  tag: 2.0.0-java17
+  tag: 1.20.2-java17
   pullPolicy: IfNotPresent
 job:
   enabled: true

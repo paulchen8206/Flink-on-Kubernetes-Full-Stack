@@ -12,7 +12,6 @@ import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
 import org.apache.flink.connector.jdbc.JdbcSink;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.util.Properties;
 
 public class KafkaToPostgresDb {
     public static void main(String[] args) throws Exception {
@@ -36,6 +35,7 @@ public class KafkaToPostgresDb {
         String pgHost = (String) postgresConfig.get("host");
         int pgPort = (Integer) (postgresConfig.get("port") instanceof Integer ? postgresConfig.get("port") : ((Number)postgresConfig.get("port")).intValue());
         String pgDb = (String) postgresConfig.get("database");
+        String reportDb = (String) postgresConfig.getOrDefault("reportDatabase", "sales_report");
         String pgUser = (String) postgresConfig.get("user");
         String pgPassword = (String) postgresConfig.get("password");
         String mergedTable = (String) postgresConfig.get("mergedTable");
@@ -45,10 +45,6 @@ public class KafkaToPostgresDb {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(parallelism);
         env.enableCheckpointing(checkpointInterval);
-
-        Properties kafkaProps = new Properties();
-        kafkaProps.setProperty("bootstrap.servers", kafkaBootstrap);
-        kafkaProps.setProperty("group.id", groupIdPrefix + "-" + System.currentTimeMillis());
 
         // Read purchases using new KafkaSource API
         KafkaSource<String> purchasesSource = KafkaSource.<String>builder()
@@ -96,6 +92,22 @@ public class KafkaToPostgresDb {
         // Sink merged JSON to purchase_inventory_merged with column mapping
         String insertSql = "INSERT INTO " + mergedTable + " (transaction_time, transaction_id, product_id, price, quantity, state, is_member, member_discount, add_supplements, supplement_price, total_purchase, event_time, existing_level, stock_quantity, new_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         String jdbcUrl = "jdbc:postgresql://" + pgHost + ":" + pgPort + "/" + pgDb;
+        String reportJdbcUrl = "jdbc:postgresql://" + pgHost + ":" + pgPort + "/" + reportDb;
+
+        // Sink raw purchase events for debugging/troubleshooting visibility.
+        purchasesRaw.addSink(
+            JdbcSink.sink(
+                "INSERT INTO purchases (event_data) VALUES (?)",
+                (ps, event) -> ps.setString(1, event),
+                new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
+                    .withUrl(jdbcUrl)
+                    .withDriverName("org.postgresql.Driver")
+                    .withUsername(pgUser)
+                    .withPassword(pgPassword)
+                    .build()
+            )
+        );
+
         joined.addSink(
             JdbcSink.sink(
                 insertSql,
@@ -117,7 +129,7 @@ public class KafkaToPostgresDb {
                         String eventTimeStr = node.path("event_time").asText();
                         java.sql.Timestamp eventTime = null;
                         try {
-                            eventTime = java.sql.Timestamp.valueOf(eventTimeStr.split(".")[0]);
+                            eventTime = java.sql.Timestamp.valueOf(eventTimeStr.split("\\.")[0]);
                         } catch (Exception e) {
                             eventTime = null;
                         }
@@ -131,6 +143,57 @@ public class KafkaToPostgresDb {
                 },
                 new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
                     .withUrl(jdbcUrl)
+                    .withDriverName("org.postgresql.Driver")
+                    .withUsername(pgUser)
+                    .withPassword(pgPassword)
+                    .build()
+            )
+        );
+
+        // Sink lightweight report metrics into sales_report.purchase_report.
+        String reportInsertSql = "INSERT INTO purchase_report (dim_item, dim_category, dim_state, purchase_time, "
+            + "fact_count_transactions, fact_sum_quantity, fact_sum_price, fact_sum_member_discount, "
+            + "fact_sum_supplement_price, fact_sum_total_purchase, fact_avg_total_purchase) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            + "ON CONFLICT (dim_item, dim_category, dim_state, purchase_time) DO UPDATE SET "
+            + "fact_count_transactions = purchase_report.fact_count_transactions + EXCLUDED.fact_count_transactions, "
+            + "fact_sum_quantity = purchase_report.fact_sum_quantity + EXCLUDED.fact_sum_quantity, "
+            + "fact_sum_price = purchase_report.fact_sum_price + EXCLUDED.fact_sum_price, "
+            + "fact_sum_member_discount = purchase_report.fact_sum_member_discount + EXCLUDED.fact_sum_member_discount, "
+            + "fact_sum_supplement_price = purchase_report.fact_sum_supplement_price + EXCLUDED.fact_sum_supplement_price, "
+            + "fact_sum_total_purchase = purchase_report.fact_sum_total_purchase + EXCLUDED.fact_sum_total_purchase, "
+            + "fact_avg_total_purchase = ((purchase_report.fact_avg_total_purchase * purchase_report.fact_count_transactions) "
+            + "+ (EXCLUDED.fact_avg_total_purchase * EXCLUDED.fact_count_transactions)) "
+            + "/ (purchase_report.fact_count_transactions + EXCLUDED.fact_count_transactions)";
+
+        joined.addSink(
+            JdbcSink.sink(
+                reportInsertSql,
+                (ps, event) -> {
+                    try {
+                        com.fasterxml.jackson.databind.JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(event);
+                        java.sql.Timestamp purchaseTime = java.sql.Timestamp.valueOf(node.path("transaction_time").asText());
+                        double price = node.path("price").asDouble();
+                        int quantity = node.path("quantity").asInt();
+                        double totalPurchase = node.path("total_purchase").asDouble();
+
+                        ps.setString(1, node.path("product_id").asText());
+                        ps.setString(2, "unknown");
+                        ps.setString(3, node.path("state").asText());
+                        ps.setTimestamp(4, purchaseTime);
+                        ps.setFloat(5, 1.0f);
+                        ps.setFloat(6, (float) quantity);
+                        ps.setFloat(7, (float) (price * quantity));
+                        ps.setFloat(8, (float) node.path("member_discount").asDouble());
+                        ps.setFloat(9, (float) node.path("supplement_price").asDouble());
+                        ps.setFloat(10, (float) totalPurchase);
+                        ps.setFloat(11, (float) totalPurchase);
+                    } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                        throw new RuntimeException(e);
+                    }
+                },
+                new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
+                    .withUrl(reportJdbcUrl)
                     .withDriverName("org.postgresql.Driver")
                     .withUsername(pgUser)
                     .withPassword(pgPassword)

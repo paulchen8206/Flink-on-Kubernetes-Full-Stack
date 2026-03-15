@@ -5,7 +5,7 @@ metadata:
   namespace: flink
 spec:
   image: your-registry/flink-purchase-report:1.0
-  flinkVersion: v2_0
+  flinkVersion: v1_20
   flinkConfiguration:
     taskmanager.numberOfTaskSlots: "4"
     state.backend: rocksdb
